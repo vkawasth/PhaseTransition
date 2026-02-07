@@ -16,7 +16,9 @@ flows with Bayesian priors, (3) blowup/blowdown operations
 resolving pharmacological singularities, and (4) a constructive
 proof that the entire structure admits polynomial-time approx-
 imation. We demonstrate that drug-receptor interactions in-
-duce measurable changes in the Hochschild cohomology HH 2 of
+duce measurable changes in the Hochschi<img width="1024" height="1024" alt="Gemini_Generated_Image_s6syt0s6syt0s6sy" src="https://github.com/user-attachments/assets/9636a34c-892e-4dff-86c9-1ceddd805ca8" />
+ld cohomology HH 2 of
 neural stalks, providing topological biomarkers for phase tran-
 sitions while preserving the functorial structure necessary for
 causal analysis.
+
