@@ -22,3 +22,9 @@ neural stalks, providing topological biomarkers for phase tran-
 sitions while preserving the functorial structure necessary for
 causal analysis.
 
+<img width="1494" height="987" alt="Screenshot 2026-03-26 at 9 18 20 AM" src="https://github.com/user-attachments/assets/940bd5b7-7ff1-4ebe-83bc-1b5f97ce20a4" />
+
+<img width="1303" height="971" alt="Screenshot 2026-03-26 at 9 17 57 AM" src="https://github.com/user-attachments/assets/eb8ba56e-9d64-4d10-8074-fae44b1e41b5" />
+<img width="1490" height="981" alt="Screenshot 2026-03-26 at 9 13 18 AM" src="https://github.com/user-attachments/assets/3d7a49da-c691-4923-b7ad-30f04e22ca1a" />
+<img width="1296" height="975" alt="Screenshot 2026-03-26 at 9 12 07 AM" src="https://github.com/user-attachments/assets/bb366b7d-050d-4be2-8492-9bd60388ce06" />
+<img width="1487" height="988" alt="Screenshot 2026-03-26 at 9 11 46 AM" src="https://github.com/user-attachments/assets/5af406c0-fdc3-4d2d-9a38-8d191d3ee77d" />
