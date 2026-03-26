@@ -1,3 +1,5 @@
+For full picture using 3 nodes 7 edges use deepseek_python_20260325_149c87.py program.
+
 This reporsitory is about studying algebraic geometry through phase change, involving topological transformations. 
 One can think of this as water transforming from ice to liquid to gas, and back. What can a neioghborhood expect, algebraically.
 We want to implement triggers, and transformations all locally, disregarding global changes using sheafs, MorAl algebra locally, Poisson globally.
