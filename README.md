@@ -27,3 +27,6 @@ causal analysis.
 <img width="1303" height="971" alt="Screenshot 2026-03-26 at 9 17 57 AM" src="https://github.com/user-attachments/assets/eb8ba56e-9d64-4d10-8074-fae44b1e41b5" />
 
 <img width="1487" height="988" alt="Screenshot 2026-03-26 at 9 11 46 AM" src="https://github.com/user-attachments/assets/5af406c0-fdc3-4d2d-9a38-8d191d3ee77d" />
+
+<img width="1999" height="1859" alt="Screenshot 2026-03-26 at 1 39 48 PM" src="https://github.com/user-attachments/assets/688d1e2e-e27f-447b-b7f5-685fda73b8bf" />
+
