@@ -33,3 +33,7 @@ causal analysis.
 <img width="1999" height="1859" alt="Screenshot 2026-03-26 at 1 39 48 PM" src="https://github.com/user-attachments/assets/688d1e2e-e27f-447b-b7f5-685fda73b8bf" />
 
 <img width="1981" height="1380" alt="Screenshot 2026-03-26 at 2 25 07 PM" src="https://github.com/user-attachments/assets/20499049-0641-470f-892d-d1b494fb21c4" />
+
+Wavelets and 2nd order interaction effect - 3 nodes and 7 edges.
+
+<img width="1555" height="1961" alt="Screenshot 2026-03-27 at 6 32 22 PM" src="https://github.com/user-attachments/assets/5d0ca790-4d56-4568-b855-70d49724ca72" />
