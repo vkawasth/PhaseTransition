@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from scipy.signal import cwt, morlet, coherence, find_peaks
 from scipy.signal import hilbert
+import sklearn.cluster
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -288,6 +289,480 @@ class FullGraphDynamics:
             z = self.compute_path_zeta(traj)
             prime_zeta.append(z)
         return prime_zeta
+    
+# ============================================================================
+# PART: WAVELET QUIVER (6 vertices, 28 arrows)
+# ============================================================================
+
+class DynamicWaveletQuiver:
+    """
+    6-vertex, 28-arrow quiver driven by molecular dynamics.
+    Vertices: a (amp A), b (amp B), ω₁ (freq A), ω₂ (freq B), φ (phase), κ (coupling)
+    """
+    V_A, V_B, V_W1, V_W2, V_PHI, V_KAPPA = 0, 1, 2, 3, 4, 5
+    vertex_names = ['a', 'b', 'ω₁', 'ω₂', 'φ', 'κ']
+
+    def __init__(self, dynamics, dt=0.02):
+        self.dynamics = dynamics
+        self.dt = dt
+
+    def _get_time_index(self, t):
+        return np.argmin(np.abs(self.dynamics.t - t))
+
+    def get_dynamic_rates(self, t, state):
+        idx = self._get_time_index(t)
+        if idx >= len(self.dynamics.t):
+            idx = -1
+        qA = self.dynamics.qA[0, idx] if idx >= 0 else 0
+        qB = self.dynamics.qB[0, idx] if idx >= 0 else 0
+        C = self.dynamics.C[0, idx] if idx >= 0 else 0.5
+
+        rates = {}
+
+        # Self-loops (6)
+        lamA = np.log(2) / self.dynamics.half_life_A
+        lamB = np.log(2) / self.dynamics.half_life_B
+        rates[(self.V_A, self.V_A)] = -lamA * (1 - qA)
+        rates[(self.V_B, self.V_B)] = -lamB * (1 - qB)
+        rates[(self.V_W1, self.V_W1)] = -0.01
+        rates[(self.V_W2, self.V_W2)] = -0.01
+        rates[(self.V_PHI, self.V_PHI)] = -0.005
+        rates[(self.V_KAPPA, self.V_KAPPA)] = -0.1 * (1 - qA * qB)
+
+        # Amplitude → Frequency (2)
+        rates[(self.V_A, self.V_W1)] = 0.1 * qA
+        rates[(self.V_B, self.V_W2)] = 0.1 * qB
+
+        # Frequency → Amplitude (2)
+        rates[(self.V_W1, self.V_A)] = 0.05 * C
+        rates[(self.V_W2, self.V_B)] = 0.05 * C
+
+        # Cross-coupling A↔B (4)
+        coupling = qA * qB
+        rates[(self.V_A, self.V_B)] = 0.2 * coupling
+        rates[(self.V_B, self.V_A)] = 0.2 * coupling
+        rates[(self.V_W1, self.V_W2)] = 0.03 * (qA + qB) / 2
+        rates[(self.V_W2, self.V_W1)] = 0.03 * (qA + qB) / 2
+
+                # Phase coupling (6)
+        rates[(self.V_PHI, self.V_A)] = 0.01 * qA
+        rates[(self.V_PHI, self.V_B)] = 0.01 * qB
+        rates[(self.V_A, self.V_PHI)] = 0.02 * C
+        rates[(self.V_B, self.V_PHI)] = 0.02 * C
+        rates[(self.V_W1, self.V_PHI)] = 0.015 * qA
+        rates[(self.V_W2, self.V_PHI)] = 0.015 * qB
+
+        # Coupling strength interactions (8)
+        kappa = qA * qB / ((qA + qB)**2 + 1e-8)
+        rates[(self.V_KAPPA, self.V_A)] = 0.15 * kappa
+        rates[(self.V_KAPPA, self.V_B)] = 0.15 * kappa
+        rates[(self.V_KAPPA, self.V_W1)] = 0.1 * kappa
+        rates[(self.V_KAPPA, self.V_W2)] = 0.1 * kappa
+        rates[(self.V_A, self.V_KAPPA)] = 0.1 * qA
+        rates[(self.V_B, self.V_KAPPA)] = 0.1 * qB
+        rates[(self.V_W1, self.V_KAPPA)] = 0.08 * C
+        rates[(self.V_W2, self.V_KAPPA)] = 0.08 * C
+
+        return rates
+
+    def transition_matrix(self, t, state):
+        M = np.zeros((6, 6))
+        rates = self.get_dynamic_rates(t, state)
+        for (src, tgt), rate in rates.items():
+            M[tgt, src] = rate
+        return M
+
+    def evolve(self, state, t):
+        M = self.transition_matrix(t, state)
+        new_state = state + (M @ state) * self.dt
+        # Clamp
+        new_state[self.V_A] = np.clip(new_state[self.V_A], 0, 1)
+        new_state[self.V_B] = np.clip(new_state[self.V_B], 0, 1)
+        new_state[self.V_W1] = np.clip(new_state[self.V_W1], 0.5, 3)
+        new_state[self.V_W2] = np.clip(new_state[self.V_W2], 0.5, 3)
+        new_state[self.V_PHI] = np.clip(new_state[self.V_PHI], -np.pi, np.pi)
+        new_state[self.V_KAPPA] = np.clip(new_state[self.V_KAPPA], 0, 1)
+        return new_state
+
+    def simulate_quiver(self, initial_state, t_span):
+        t = np.arange(t_span[0], t_span[1], self.dt)
+        states = np.zeros((len(t), 6))
+        current = initial_state.copy()
+        for i, ti in enumerate(t):
+            states[i] = current
+            current = self.evolve(current, ti)
+        return t, states
+
+
+
+# Graph Spectral sheaf over physical graph
+class SpectralSheaf:
+    """
+    Cellular sheaf on the original 3-node, 7-edge graph.
+    Stalks = 4‑dim probability vectors.
+    Restriction maps = 4×4 transition matrices.
+    """
+    def __init__(self, dynamics: FullGraphDynamics, quiver: DynamicWaveletQuiver):
+        self.dynamics = dynamics
+        self.quiver = quiver          # to get transition rates
+        self.n_nodes = 3
+        self.stalk_dim = 4
+        self.total_dim = self.n_nodes * self.stalk_dim   # 12
+
+    def build_restriction_matrix(self, edge, t):
+        """Return 4×4 transition matrix for given edge at time t."""
+        src, tgt = edge
+        # Use existing transition_rate to get probabilities
+        kA = self.dynamics.transition_rate(edge, t, 'A')
+        kB = self.dynamics.transition_rate(edge, t, 'B')
+        # Build 4×4 diagonal matrix? Actually it's not diagonal because molecules
+        # can change state? In our model, the transition is diagonal in the joint state basis:
+        # HH→HH, HT→HT, TH→TH, TT→TT. So it's diagonal.
+        k_HH = kA * kB
+        k_HT = kA * (1 - kB)
+        k_TH = (1 - kA) * kB
+        k_TT = (1 - kA) * (1 - kB)
+        # Normalise?
+        total = k_HH + k_HT + k_TH + k_TT
+        if total > 0:
+            k_HH /= total; k_HT /= total; k_TH /= total; k_TT /= total
+        return np.diag([k_HH, k_HT, k_TH, k_TT])
+
+    def laplacian(self, t):
+        """
+        Compute sheaf Laplacian (block matrix) at time t.
+        L = sum over edges of (incidence matrix ⊗ restriction)^T (incidence ⊗ restriction)
+        For simplicity, we build directly: L = D - A, where:
+        - D: block diagonal of sum of restriction maps from each vertex.
+        - A: block adjacency of restriction maps.
+        """
+        L = np.zeros((self.total_dim, self.total_dim))
+        # For each vertex, sum of outgoing maps
+        for v in range(self.n_nodes):
+            # sum over edges incident to v (both directions)
+            for edge in self.dynamics.edges:
+                if edge[0] == v:   # outgoing
+                    R = self.build_restriction_matrix(edge, t)
+                    # contribution to D at v
+                    L[v*4:(v+1)*4, v*4:(v+1)*4] += R.T @ R
+                elif edge[1] == v:  # incoming
+                    R = self.build_restriction_matrix(edge, t)
+                    # incoming edge contributes to D at v as well? Actually the sheaf Laplacian
+                    # is defined as L = δ^* δ, where δ is the co-boundary operator.
+                    # The standard formula: L_v = Σ_{e incident to v} φ_e^T φ_e (for a sheaf with inner products)
+                    # So we add φ_e^T φ_e for each edge incident to v.
+                    L[v*4:(v+1)*4, v*4:(v+1)*4] += R.T @ R
+                    # Off‑diagonal blocks: for edge e = (u,v), we have -φ_e at block (u,v) and -φ_e^T at (v,u)
+                    # Actually, the off-diagonal block for edge (u->v) is -φ_e, and for (v->u) is -φ_e^T.
+                    # But our edges are directed; we must treat both directions.
+        # We'll simplify: use undirected approach by adding both orientations.
+        # Instead, we'll build using incidence matrix approach.
+        return self._build_laplacian_direct(t)
+
+    def _build_laplacian_direct(self, t):
+        # Simpler: iterate over edges and add contributions
+        L = np.zeros((self.total_dim, self.total_dim))
+        for edge in self.dynamics.edges:
+            u, v = edge
+            R = self.build_restriction_matrix(edge, t)
+            # Diagonal blocks: add R^T R to u and v
+            L[u*4:(u+1)*4, u*4:(u+1)*4] += R.T @ R
+            L[v*4:(v+1)*4, v*4:(v+1)*4] += R.T @ R
+            # Off-diagonal blocks
+            L[u*4:(u+1)*4, v*4:(v+1)*4] += -R
+            L[v*4:(v+1)*4, u*4:(u+1)*4] += -R.T
+        return L
+
+    def eigenvalues(self, t):
+        L = self.laplacian(t)
+        # We're interested in the smallest eigenvalues (zero indicates missing structure)
+        return np.linalg.eigvalsh(L)
+
+    def detect_missing_edges(self, t, tol=1e-6):
+        evals = self.eigenvalues(t)
+        zero_evals = evals[evals < tol]
+        if len(zero_evals) > 0:
+            # There is at least one zero eigenvalue → missing structure
+            # Compute eigenvectors to localise
+            _, evecs = np.linalg.eigh(L)
+            # The eigenvector corresponding to the smallest eigenvalue
+            v = evecs[:, 0]
+            # Reshape to (n_nodes, stalk_dim)
+            v_reshaped = v.reshape(self.n_nodes, self.stalk_dim)
+            # Find which vertex has largest norm
+            node_contrib = np.linalg.norm(v_reshaped, axis=1)
+            suspected_node = np.argmax(node_contrib)
+            # Also check edges: the eigenvector entries on both endpoints of an edge
+            # indicate if that edge is problematic
+            return True, suspected_node, v_reshaped
+        return False, None, None
+
+# Adds HH3 over physical graph.
+
+class GraphSpectralSheaf:
+    """
+    Cellular sheaf on the 3‑node, 7‑edge graph.
+    Stalks = 4‑dim probability vectors.
+    Restriction maps = 4×4 diagonal transition matrices.
+    """
+    def __init__(self, dynamics):
+        self.dynamics = dynamics
+        self.n_nodes = 3
+        self.stalk_dim = 4
+        self.total_dim = self.n_nodes * self.stalk_dim   # 12
+
+    def transition_matrix(self, edge, t):
+        """Return the 4×4 diagonal transition matrix for the given edge at time t."""
+        kA = self.dynamics.transition_rate(edge, t, 'A')
+        kB = self.dynamics.transition_rate(edge, t, 'B')
+        kHH = kA * kB
+        kHT = kA * (1 - kB)
+        kTH = (1 - kA) * kB
+        kTT = (1 - kA) * (1 - kB)
+        total = kHH + kHT + kTH + kTT
+        if total > 0:
+            kHH /= total
+            kHT /= total
+            kTH /= total
+            kTT /= total
+        return np.diag([kHH, kHT, kTH, kTT])
+
+    def laplacian(self, t):
+        """
+        Compute the sheaf Laplacian (12×12) as L = D - A, where:
+        D: block‑diagonal sum of R^T R for each incident edge,
+        A: off‑diagonal blocks = -R for edge (u→v) and -R^T for (v→u).
+        """
+        L = np.zeros((self.total_dim, self.total_dim))
+        for edge in self.dynamics.edges:
+            u, v = edge
+            R = self.transition_matrix(edge, t)
+            # Add contributions to diagonal blocks
+            L[u*4:(u+1)*4, u*4:(u+1)*4] += R.T @ R
+            L[v*4:(v+1)*4, v*4:(v+1)*4] += R.T @ R
+            # Off‑diagonal blocks
+            L[u*4:(u+1)*4, v*4:(v+1)*4] += -R
+            L[v*4:(v+1)*4, u*4:(u+1)*4] += -R.T
+        # Add a tiny identity to ensure positive definiteness
+        L += 1e-8 * np.eye(self.total_dim)
+        return L
+
+    def eigenvalues(self, t):
+        """Return sorted eigenvalues of the sheaf Laplacian at time t."""
+        L = self.laplacian(t)
+        return np.linalg.eigvalsh(L)
+
+    def spectral_clustering(self, t, n_clusters=2):
+        """
+        Cluster the 3 nodes (or the 4‑dim stalks) using eigenvectors of L.
+        Returns labels for each vertex (3 labels).
+        """
+        L = self.laplacian(t)
+        evals, evecs = np.linalg.eigh(L)
+        # Use the smallest non‑zero eigenvectors (e.g., first n_clusters)
+        # The trivial eigenvector (constant) is often zero; we skip it if it's small.
+        # For simplicity, use the eigenvectors corresponding to the smallest eigenvalues.
+        # Reshape to (n_nodes, stalk_dim) to get per‑vertex contributions.
+        # Here we want to cluster vertices, so we take the norm of each stalk's eigenvector part.
+        X = np.zeros((self.n_nodes, n_clusters))
+        for i in range(self.n_nodes):
+            for j in range(n_clusters):
+                # The eigenvector entries for vertex i are in indices i*4 to i*4+3
+                # Take the norm of that 4‑vector as a feature
+                X[i, j] = np.linalg.norm(evecs[i*4:(i+1)*4, j+1])
+        # Normalize rows
+        X = X / (np.linalg.norm(X, axis=1, keepdims=True) + 1e-12)
+        from sklearn.cluster import KMeans
+        kmeans = KMeans(n_clusters=n_clusters, random_state=0, n_init=10)
+        labels = kmeans.fit_predict(X)
+        return labels
+
+    def triple_interaction_matrix(self, t):
+        """
+        Approximate HH³ by (adjacency)^3, where adjacency is a 3×3 matrix
+        with entries = norm of restriction maps (or the total flow).
+        """
+        # Build a 3×3 weighted adjacency where weight = total flow on edge
+        A = np.zeros((self.n_nodes, self.n_nodes))
+        for edge in self.dynamics.edges:
+            u, v = edge
+            R = self.transition_matrix(edge, t)
+            # Use trace as a scalar weight (total probability transferred)
+            weight = np.trace(R)   # sum of diagonal entries = total flow
+            A[u, v] = weight
+        # Symmetrize
+        A_sym = (A + A.T) / 2
+        T = A_sym @ A_sym @ A_sym
+        return T
+
+# Spectral sheaf over Quivers
+# ============================================================================
+# NEW: Quiver Spectral Sheaf Analysis
+# ============================================================================
+
+class QuiverSpectralSheaf:
+    """
+    Builds a sheaf on the 6-vertex quiver with 1‑dimensional stalks.
+    The sheaf Laplacian is the symmetrized weighted Laplacian of the digraph.
+    """
+    def __init__(self, quiver):
+        self.quiver = quiver
+        self.n_vertices = 6
+        self.vertex_names = quiver.vertex_names
+
+    def adjacency_matrix(self, t, state):
+        """6×6 weighted adjacency matrix A where A[i,j] = rate from j → i."""
+        rates = self.quiver.get_dynamic_rates(t, state)
+        A = np.zeros((self.n_vertices, self.n_vertices), dtype=np.float64)
+        for (src, tgt), rate in rates.items():
+            A[tgt, src] = rate
+        return A
+
+    def laplacian(self, t, state, regularization=1e-10):
+        """Symmetric normalized Laplacian L = I - D^{-1/2} A D^{-1/2} with regularization."""
+        A = self.adjacency_matrix(t, state)
+        out_deg = A.sum(axis=0)
+        in_deg = A.sum(axis=1)
+        deg = (out_deg + in_deg) / 2.0
+        # Add small epsilon to avoid division by zero
+        deg = np.maximum(deg, 1e-12)
+        D_inv_sqrt = np.diag(1.0 / np.sqrt(deg))
+        A_sym = (A + A.T) / 2.0
+        L = np.eye(self.n_vertices) - D_inv_sqrt @ A_sym @ D_inv_sqrt
+        # Add regularization to ensure positive definiteness
+        L += regularization * np.eye(self.n_vertices)
+        return L
+
+    def eigenvalues(self, t, state):
+        """Return sorted eigenvalues of the sheaf Laplacian at time t."""
+        L = self.laplacian(t, state)
+        # Check for NaNs or Infs
+        if not np.isfinite(L).all():
+            return np.full(self.n_vertices, np.nan)
+        try:
+            evals = np.linalg.eigvalsh(L)
+            return evals
+        except np.linalg.LinAlgError:
+            # Fallback: use eigh with regularized matrix
+            L_reg = L + 1e-8 * np.eye(self.n_vertices)
+            evals = np.linalg.eigvalsh(L_reg)
+            return evals
+
+    def spectral_clustering(self, t, state, n_clusters=2):
+        """Cluster vertices using eigenvectors of the sheaf Laplacian."""
+        L = self.laplacian(t, state)
+        # Use eigh (more stable) and catch errors
+        try:
+            evals, evecs = np.linalg.eigh(L)
+        except np.linalg.LinAlgError:
+            L_reg = L + 1e-8 * np.eye(self.n_vertices)
+            evals, evecs = np.linalg.eigh(L_reg)
+
+        # Use the smallest n_clusters eigenvectors (skip the first if it's near zero)
+        # We'll use eigenvectors 1..n_clusters (0-indexed)
+        # For a connected graph, the first eigenvector is constant, so we skip it.
+        X = evecs[:, 1:n_clusters+1]  # shape (6, n_clusters)
+        # Normalize rows
+        row_norms = np.linalg.norm(X, axis=1, keepdims=True)
+        X = X / (row_norms + 1e-12)
+        from sklearn.cluster import KMeans
+        kmeans = KMeans(n_clusters=n_clusters, random_state=0, n_init=10)
+        labels = kmeans.fit_predict(X)
+        return labels
+
+    def triple_interaction_matrix(self, t, state):
+        """Approximate HH³ by A^3 (three‑step paths)."""
+        A = self.adjacency_matrix(t, state)
+        A_sym = (A + A.T) / 2.0
+        T = A_sym @ A_sym @ A_sym
+        return T
+
+# ----------------------------------------------------------------------
+# Integration into main (after quiver simulation)
+# ----------------------------------------------------------------------
+
+def add_quiver_spectral_analysis(quiver, states, t_q):
+    """Compute and plot spectral sheaf properties over time."""
+    sheaf = QuiverSpectralSheaf(quiver)
+
+    # Preallocate arrays
+    n_t = len(t_q)
+    eigvals_all = np.zeros((n_t, 6))
+    second_eigenvalue = np.zeros(n_t)
+    triple_heatmap = np.zeros((n_t, 6, 6))
+
+    for i in range(n_t):
+        state = states[i]
+        t = t_q[i]
+        L = sheaf.laplacian(t, state)
+        evals = np.linalg.eigvalsh(L)
+        eigvals_all[i] = evals
+        second_eigenvalue[i] = evals[1]  # Fiedler value
+        triple_heatmap[i] = sheaf.triple_interaction_matrix(t, state)
+
+    # Plot 1: Evolution of eigenvalues (especially the second eigenvalue)
+    fig, ax = plt.subplots(1, 2, figsize=(14, 5))
+    ax[0].plot(t_q, second_eigenvalue, 'b-', linewidth=2)
+    ax[0].set_xlabel('Time (s)')
+    ax[0].set_ylabel('Second eigenvalue (spectral gap)')
+    ax[0].set_title('Sheaf Laplacian Spectral Gap')
+    ax[0].grid(True)
+
+    # Plot the first few eigenvalues as a heatmap over time
+    im = ax[1].imshow(eigvals_all.T, aspect='auto', cmap='viridis',
+                      extent=[t_q[0], t_q[-1], 0, 5], origin='lower')
+    ax[1].set_xlabel('Time (s)')
+    ax[1].set_ylabel('Eigenvalue index')
+    ax[1].set_title('Eigenvalues of Sheaf Laplacian')
+    plt.colorbar(im, ax=ax[1], label='Eigenvalue')
+    plt.tight_layout()
+    plt.savefig('sheaf_eigenvalues.png', dpi=150)
+    plt.show()
+    print("✓ Saved: sheaf_eigenvalues.png")
+
+    # Plot 2: Clustering over time (choose a few time points)
+    sample_times = [0, 5, 10, 15]  # seconds
+    fig, axes = plt.subplots(1, len(sample_times), figsize=(16, 4))
+    for idx, t0 in enumerate(sample_times):
+        i = np.argmin(np.abs(t_q - t0))
+        labels = sheaf.spectral_clustering(t_q[i], states[i], n_clusters=2)
+        # Visualize the assignment
+        colors = ['red' if l == 0 else 'blue' for l in labels]
+        ax = axes[idx]
+        ax.bar(sheaf.vertex_names, colors, color=colors, edgecolor='black')
+        ax.set_title(f'Clusters at t={t0:.1f}s')
+        ax.set_ylabel('Cluster label')
+    plt.tight_layout()
+    plt.savefig('sheaf_clusters.png', dpi=150)
+    plt.show()
+    print("✓ Saved: sheaf_clusters.png")
+
+    # Plot 3: Triple interaction heatmap averaged over time windows
+    # Smooth over time with a moving window
+    window = 50  # number of time points
+    triple_avg = np.zeros((6, 6))
+    for i in range(0, n_t - window, window//2):
+        triple_avg += np.mean(triple_heatmap[i:i+window], axis=0)
+    triple_avg /= (2 * n_t / window)  # approximate average
+
+    fig, ax = plt.subplots(figsize=(8, 6))
+    im = ax.imshow(triple_avg, cmap='hot', interpolation='nearest')
+    ax.set_xticks(range(6))
+    ax.set_yticks(range(6))
+    ax.set_xticklabels(sheaf.vertex_names)
+    ax.set_yticklabels(sheaf.vertex_names)
+    ax.set_title('Average Triple Interaction Strength (A³)')
+    plt.colorbar(im, ax=ax, label='Strength')
+    plt.tight_layout()
+    plt.savefig('triple_interaction.png', dpi=150)
+    plt.show()
+    print("✓ Saved: triple_interaction.png")
+
+    return {
+        'eigenvalues': eigvals_all,
+        'second_eigenvalue': second_eigenvalue,
+        'triple_heatmap': triple_heatmap
+    }
 
 
 # ============================================================================
@@ -627,6 +1102,7 @@ def plot_prime_zeta(dynamics):
     print("    ✓ Saved: prime_zeta.png")
 
 
+
 # ============================================================================
 # MAIN
 # ============================================================================
@@ -638,6 +1114,117 @@ def main():
     
     dynamics = FullGraphDynamics()
     t, C, qA, qB, HH1, HH2 = dynamics.simulate()
+
+    # Build the sheaf
+    sheaf = GraphSpectralSheaf(dynamics)
+
+    # Compute eigenvalues and triple interactions over time
+    n_t = len(t)
+    second_eigenvalue = np.zeros(n_t)
+    triple_heatmap = np.zeros((n_t, 3, 3))
+
+    for i, ti in enumerate(t):
+        evals = sheaf.eigenvalues(ti)
+        second_eigenvalue[i] = evals[1] if len(evals) > 1 else 0
+        triple_heatmap[i] = sheaf.triple_interaction_matrix(ti)
+
+    # Plot spectral gap (second eigenvalue)
+    plt.figure(figsize=(8,4))
+    plt.plot(t, second_eigenvalue, 'b-')
+    plt.xlabel('Time (s)')
+    plt.ylabel('Second eigenvalue')
+    plt.title('Sheaf Laplacian spectral gap')
+    plt.grid(True)
+    plt.savefig('sheaf_gap.png')
+    plt.show()
+
+    # Plot average triple interaction
+    avg_triple = np.mean(triple_heatmap, axis=0)
+    plt.figure()
+    plt.imshow(avg_triple, cmap='hot')
+    plt.colorbar()
+    plt.xticks([0,1,2], ['Node 0', 'Node 1', 'Node 2'])
+    plt.yticks([0,1,2], ['Node 0', 'Node 1', 'Node 2'])
+    plt.title('Average triple interaction (HH³ proxy)')
+    plt.savefig('triple_interaction.png')
+    plt.show()
+
+    # Spectral clustering at a few times
+    times = [0, 5, 10, 15]
+    print("\nSpectral clustering (graph sheaf):")
+    for ti in times:
+        idx = np.argmin(np.abs(t - ti))
+        labels = sheaf.spectral_clustering(t[idx])
+        print(f"t={ti:.1f}s, clusters: {labels}")
+
+    # This is Quiver Dynamics
+    # 1. Build initial quiver state from the first simulation point
+    initial_state = np.array([
+        C[0,0] * (1 - qA[0,0]),
+        (1 - C[0,0]) * (1 - qB[0,0]),
+        1.0 + qA[0,0],
+        2.0 + qB[0,0],
+        np.arctan2(qB[0,0] - qA[0,0], qA[0,0] + qB[0,0]),
+        qA[0,0] * qB[0,0] / ((qA[0,0] + qB[0,0])**2 + 1e-8)
+    ])
+
+    # 2. Simulate the quiver
+    quiver = DynamicWaveletQuiver(dynamics)   # 'dynamics' is your simulation object
+    t_q, states = quiver.simulate_quiver(initial_state, (t[0], t[-1]))
+
+    # 3. Build the spectral sheaf on the quiver
+    sheafq = QuiverSpectralSheaf(quiver)
+
+    # 4. Compute eigenvalue series and triple interaction over time
+    n_t = len(t_q)
+    second_eigenvalue_q = np.zeros(n_t)
+    triple_heatmap_q = np.zeros((n_t, 6, 6))
+
+    for i in range(n_t):
+        try:
+            evals = sheafq.eigenvalues(t_q[i], states[i])
+            if np.isnan(evals).any():
+                continue
+            second_eigenvalue_q[i] = evals[1] if len(evals) > 1 else 0
+            triple_heatmap_q[i] = sheafq.triple_interaction_matrix(t_q[i], states[i])
+        except Exception as e:
+            print(f"Warning: failed at time {t_q[i]:.2f}: {e}")
+            continue
+
+    # Remove nan entries for plotting
+    mask = ~np.isnan(second_eigenvalue_q)
+    t_valid = t_q[mask]
+    second_eigenvalue_valid_q = second_eigenvalue_q[mask]
+
+    # Plot only valid points
+    plt.figure(figsize=(12, 4))
+    plt.subplot(1, 2, 1)
+    if len(t_valid) > 0:
+        plt.plot(t_valid, second_eigenvalue_valid_q, 'b-')
+    plt.xlabel('Time (s)')
+    plt.ylabel('Second eigenvalue (spectral gap)')
+    plt.title('Quiver Sheaf Spectral Gap')
+    plt.grid(True)
+
+    plt.subplot(1, 2, 2)
+    avg_triple = np.mean(triple_heatmap_q, axis=0)
+    plt.imshow(avg_triple, cmap='hot')
+    plt.colorbar()
+    plt.xticks(range(6), quiver.vertex_names, rotation=45)
+    plt.yticks(range(6), quiver.vertex_names)
+    plt.title('Average Triple Interaction (A³)')
+    plt.tight_layout()
+    plt.savefig('quiver_sheafq_analysis.png', dpi=150)
+    plt.show()
+
+    # 6. Clustering at a few times
+    print("\nSpectral clustering at selected times:")
+    for t0 in [0, 5, 10, 15]:
+        idx = np.argmin(np.abs(t_q - t0))
+        labels = sheafq.spectral_clustering(t_q[idx], states[idx], n_clusters=2)
+        print(f"t={t0:.1f}s, clusters: {dict(zip(quiver.vertex_names, labels))}")
+
+
     
     print("\n  Consciousness summary:")
     for node in range(3):
