@@ -46,3 +46,6 @@ https://www.jakobhansen.org/publications/gentleintroduction.pdf
 Siegel and Milnor snaps (Failing colimits and Spectral sheaves failing to glue as HH2 obstructions have created shards.
 
 <img width="596" height="552" alt="Screenshot 2026-03-30 at 7 54 43 PM" src="https://github.com/user-attachments/assets/c9a1d445-4b3c-4e2c-8cdd-1d0c8bffd300" />
+Prolate Operator lining up with HH2 obstruction Sigel Half Space to Klien Quadric to Toric Dynamics.
+
+<img width="1950" height="1614" alt="Screenshot 2026-03-30 at 8 22 11 PM" src="https://github.com/user-attachments/assets/6851c7f4-ba6e-4b0c-a970-767710d04ef7" />
