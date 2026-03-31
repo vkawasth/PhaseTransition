@@ -17,6 +17,31 @@ import pandas as pd
 from collections import deque
 warnings.filterwarnings('ignore')
 
+class MilnorSequestrator:
+    """Isolates the 'Milnor Node' singular points during algebraic failure."""
+    def __init__(self, threshold=0.3):
+        self.threshold = threshold
+        self.singularities = []
+
+    def isolate_node(self, t, consciousness, state_vector):
+        # Detects the 'Snap' when consciousness drops below threshold
+        if consciousness < self.threshold:
+            self.singularities.append((t, state_vector))
+            return True
+        return False
+
+class SiegelLock:
+    """Maintains the Ghost Signal (Siegel Lock) for system coordination."""
+    def __init__(self, anchor_value=0.6):
+        self.anchor = anchor_value
+
+    def apply_lock(self, qA, qB, C):
+        # Maintains coordination even if the physical signal (C) vanishes
+        coordination_strength = np.sqrt(qA**2 + qB**2)
+        if C < 0.3:
+            # System is in 'Ghost' mode; use the Siegel anchor
+            return self.anchor 
+        return coordination_strength
 
 class FullGraphDynamics:
     """Full molecular dynamics with extreme flow to ensure recovery."""
@@ -26,6 +51,15 @@ class FullGraphDynamics:
         self.edges = [
             (0, 1), (1, 0), (0, 2), (2, 0), (1, 2), (2, 1), (1, 1)
         ]
+        # 2. DEFINE THRESHOLD HERE (Move this up!)
+        self.threshold = 0.3  
+        
+        # 3. Now initialize Milnor and Siegel using the threshold
+        self.milnor = MilnorSequestrator(threshold=self.threshold)
+        self.siegel = SiegelLock(anchor_value=0.6)
+        
+        # 4. Initialize other tracking arrays
+        self.ghost_signal = None
         
         # Extremely high edge weights for norcain
         self.edge_weights = {
@@ -129,6 +163,8 @@ class FullGraphDynamics:
         
         lambda_A = np.log(2) / self.half_life_A
         lambda_B = np.log(2) / self.half_life_B
+
+        self.ghost_signal = np.zeros(n_steps) # Ensure this is an array
         
         print("\n  Extreme flow configuration:")
         print(f"    Opiate base flow = 4.0, edge weights: 0→1={self.edge_weights[(0,1)]}, 0→2={self.edge_weights[(0,2)]}")
@@ -178,6 +214,15 @@ class FullGraphDynamics:
                 oscillation = 0.1 * np.sin(2 * np.pi * 0.6 * t[i]) * (1 - C_cur)
                 dC = (activation - dampening + oscillation) * dt_step
                 self.C[node, i+1] = np.clip(C_cur + dC, 0, 1)
+
+                # 1. Apply Milnor Sequestration to Node 0 (the primary dosing site)
+                self.milnor.isolate_node(self.t[i+1], self.C[0, i+1], [self.qA[0, i+1], self.qB[0, i+1]])
+                
+                # 2. Calculate the Siegel Lock (Ghost Signal) for the entire graph
+                avg_qA = np.mean(self.qA[:, i+1])
+                avg_qB = np.mean(self.qB[:, i+1])
+                avg_C = np.mean(self.C[:, i+1])
+                self.ghost_signal[i+1] = self.siegel.apply_lock(avg_qA, avg_qB, avg_C)
             
             self.HH1[i+1], self.HH2[i+1] = self.compute_hochschild_invariants(i+1)
         
@@ -814,18 +859,19 @@ class ReverseHironakaMoleculeResolver:
 # ============================================================================
 
 def create_dashboard(dynamics):
-    """Create the 20-panel dashboard."""
+    """Create the 21-panel dashboard with Siegel and Milnor integration."""
     t, C, qA, qB, HH1, HH2 = dynamics.t, dynamics.C, dynamics.qA, dynamics.qB, dynamics.HH1, dynamics.HH2
     plucker = dynamics.plucker
     dose_times = dynamics.dose_times
     threshold = dynamics.threshold
     
-    fig = plt.figure(figsize=(22, 28))
+    # Expanded grid to 6x4 to accommodate 21+ panels
+    fig = plt.figure(figsize=(22, 32))
     colors = ['#FF6B6B', '#4ECDC4', '#45B7D1']
     dt_val = t[1] - t[0]
     
     # 1. Consciousness across all nodes
-    ax1 = plt.subplot(5, 4, 1)
+    ax1 = plt.subplot(6, 4, 1)
     for node in range(3):
         ax1.plot(t, C[node, :], color=colors[node], lw=2, label=f'Node {node}')
     ax1.axhline(y=threshold, color='red', ls='--')
@@ -837,7 +883,7 @@ def create_dashboard(dynamics):
     ax1.set_ylim(0, 1.05)
     
     # 2. Restoration with multiple doses
-    ax2 = plt.subplot(5, 4, 2)
+    ax2 = plt.subplot(6, 4, 2)
     for node in range(3):
         ax2.plot(t, C[node, :], color=colors[node], lw=2)
     ax2.fill_between(t, 0, threshold, alpha=0.3, color='red', label='Unconscious')
@@ -851,7 +897,7 @@ def create_dashboard(dynamics):
     ax2.grid(True, alpha=0.3)
     
     # 3. Opiate
-    ax3 = plt.subplot(5, 4, 3)
+    ax3 = plt.subplot(6, 4, 3)
     for node in range(3):
         ax3.plot(t, qA[node, :], color=colors[node], lw=1.5, ls='--')
     ax3.set_title('3. Opiate (A) Concentrations')
@@ -859,7 +905,7 @@ def create_dashboard(dynamics):
     ax3.grid(True, alpha=0.3)
     
     # 4. Norcain
-    ax4 = plt.subplot(5, 4, 4)
+    ax4 = plt.subplot(6, 4, 4)
     for node in range(3):
         ax4.plot(t, qB[node, :], color=colors[node], lw=2)
     for dt in dose_times:
@@ -869,7 +915,7 @@ def create_dashboard(dynamics):
     ax4.grid(True, alpha=0.3)
     
     # 5. HH¹
-    ax5 = plt.subplot(5, 4, 5)
+    ax5 = plt.subplot(6, 4, 5)
     ax5.plot(t, HH1, 'b-', lw=2)
     for dt in dose_times:
         ax5.axvline(x=dt, color='green', ls=':', alpha=0.7)
@@ -877,7 +923,7 @@ def create_dashboard(dynamics):
     ax5.grid(True, alpha=0.3)
     
     # 6. HH²
-    ax6 = plt.subplot(5, 4, 6)
+    ax6 = plt.subplot(6, 4, 6)
     ax6.plot(t, HH2, 'r-', lw=2)
     for dt in dose_times:
         ax6.axvline(x=dt, color='green', ls=':', alpha=0.7)
@@ -888,7 +934,7 @@ def create_dashboard(dynamics):
     ax6.grid(True, alpha=0.3)
     
     # 7. Coherence over time
-    ax7 = plt.subplot(5, 4, 7)
+    ax7 = plt.subplot(6, 4, 7)
     window = 100
     coh01, coh12, coh02, t_centers = [], [], [], []
     for i in range(window, len(t)-window, window//2):
@@ -911,7 +957,7 @@ def create_dashboard(dynamics):
     ax7.set_ylim(0,1)
     
     # 8. Consciousness with HH² overlay
-    ax8 = plt.subplot(5, 4, 8)
+    ax8 = plt.subplot(6, 4, 8)
     ax8.plot(t, np.mean(C, axis=0), 'k-', label='Mean C')
     ax8.fill_between(t, 0, threshold, alpha=0.3, color='red')
     ax8_twin = ax8.twinx()
@@ -925,7 +971,7 @@ def create_dashboard(dynamics):
     ax8.grid(True, alpha=0.3)
     
     # 9. Plücker 3D
-    ax9 = fig.add_subplot(5, 4, 9, projection='3d')
+    ax9 = fig.add_subplot(6, 4, 9, projection='3d')
     # After creating ax9, add a wireframe sphere (approximation of the quadric)
     u = np.linspace(0, 2 * np.pi, 30)
     v = np.linspace(0, np.pi, 30)
@@ -943,7 +989,7 @@ def create_dashboard(dynamics):
     ax9.set_title('9. Plücker Trajectory')
     
     # 10. Plücker relation
-    ax10 = plt.subplot(5, 4, 10)
+    ax10 = plt.subplot(6, 4, 10)
     plucker_rel = plucker[:,0]*plucker[:,5] - plucker[:,1]*plucker[:,4] + plucker[:,2]*plucker[:,3]
     ax10.plot(t, plucker_rel, 'g-')
     ax10.axhline(y=0, color='black')
@@ -951,7 +997,7 @@ def create_dashboard(dynamics):
     ax10.grid(True, alpha=0.3)
     
     # 11. Phase space Node 0
-    ax11 = plt.subplot(5, 4, 11)
+    ax11 = plt.subplot(6, 4, 11)
     dC0 = np.gradient(C[0,:], dt_val)
     ax11.plot(C[0,:], dC0, 'b-', alpha=0.7)
     ax11.scatter(C[0,0], dC0[0], c='green', s=50)
@@ -960,7 +1006,7 @@ def create_dashboard(dynamics):
     ax11.grid(True, alpha=0.3)
     
     # 12. Phase space Node 1 with HH² color
-    ax12 = plt.subplot(5, 4, 12)
+    ax12 = plt.subplot(6, 4, 12)
     dC1 = np.gradient(C[1,:], dt_val)
     ax12.plot(C[1,:], dC1, 'g-', alpha=0.7)
     sc = ax12.scatter(C[1,::20], dC1[::20], c=HH2[::20], cmap='hot', s=30, alpha=0.7)
@@ -971,7 +1017,7 @@ def create_dashboard(dynamics):
     ax12.grid(True, alpha=0.3)
     
     # 13. Wavelet scalogram
-    ax13 = plt.subplot(5, 4, 13)
+    ax13 = plt.subplot(6, 4, 13)
     signal = C[0,:]
     signal_norm = (signal - np.mean(signal)) / (np.std(signal) + 1e-8)
     scales = np.arange(2, 64)
@@ -997,7 +1043,7 @@ def create_dashboard(dynamics):
     plt.colorbar(im, ax=ax13, label='|Coeff|')
     
     # 14. Wavelet energy
-    ax14 = plt.subplot(5, 4, 14)
+    ax14 = plt.subplot(6, 4, 14)
     energy = np.sum(np.abs(coeffs)**2, axis=1)
     energy = energy / (np.max(energy)+1e-8)
     ax14.plot(valid_scales, energy, 'b-')
@@ -1006,7 +1052,7 @@ def create_dashboard(dynamics):
     ax14.grid(True, alpha=0.3)
     
     # 15. Coherence 0-1
-    ax15 = plt.subplot(5, 4, 15)
+    ax15 = plt.subplot(6, 4, 15)
     try:
         from scipy.signal import coherence
         f, coh = coherence(C[0,:], C[1,:], fs=1/dt_val)
@@ -1018,7 +1064,7 @@ def create_dashboard(dynamics):
     ax15.grid(True, alpha=0.3)
     
     # 16. Coherence 1-2
-    ax16 = plt.subplot(5, 4, 16)
+    ax16 = plt.subplot(6, 4, 16)
     try:
         f, coh = coherence(C[1,:], C[2,:], fs=1/dt_val)
         ax16.semilogy(f[1:], coh[1:], 'g-')
@@ -1029,7 +1075,7 @@ def create_dashboard(dynamics):
     ax16.grid(True, alpha=0.3)
     
     # 17. Unconscious duration
-    ax17 = plt.subplot(5, 4, 17)
+    ax17 = plt.subplot(6, 4, 17)
     time_below = []
     for node in range(3):
         below = C[node,:] < threshold
@@ -1039,7 +1085,7 @@ def create_dashboard(dynamics):
     ax17.grid(True, alpha=0.3)
     
     # 18. Final consciousness
-    ax18 = plt.subplot(5, 4, 18)
+    ax18 = plt.subplot(6, 4, 18)
     final_C = C[:, -1]
     ax18.bar(['Node 0','Node 1','Node 2'], final_C, color=colors, alpha=0.7)
     ax18.axhline(y=threshold, color='red', ls='--')
@@ -1047,39 +1093,53 @@ def create_dashboard(dynamics):
     ax18.set_ylim(0,1)
     ax18.grid(True, alpha=0.3)
     
-    # 19. Final coherence
-    ax19 = plt.subplot(5, 4, 19)
+    # 19. Siegel & Milnor (FIXED: access via 'dynamics')
+    ax_ghost = plt.subplot(6, 4, 19) 
+    if hasattr(dynamics, 'ghost_signal') and dynamics.ghost_signal is not None:
+        ax_ghost.plot(t, dynamics.ghost_signal, color='gold', lw=3, label='Siegel Lock (Ghost)')
+    
+    # Plot Milnor Nodes as red 'Snap' markers
+    if hasattr(dynamics, 'milnor'):
+        snap_times = [s[0] for s in dynamics.milnor.singularities]
+        if snap_times:
+            ax_ghost.scatter(snap_times, [0.6]*len(snap_times), color='red', s=15, label='Milnor Snaps', zorder=5)
+    
+    ax_ghost.set_title('19. Siegel Lock & Milnor Sequestration')
+    ax_ghost.legend(fontsize=7)
+    ax_ghost.grid(True, alpha=0.3)
+    
+    # 20. Final coherence
+    ax20 = plt.subplot(6, 4, 20)
     final_coherence = [
         np.abs(np.corrcoef(C[0,-500:], C[1,-500:])[0,1]),
         np.abs(np.corrcoef(C[0,-500:], C[2,-500:])[0,1]),
         np.abs(np.corrcoef(C[1,-500:], C[2,-500:])[0,1])
     ]
-    ax19.bar(['0-1','0-2','1-2'], final_coherence, color=['blue','red','green'], alpha=0.7)
-    ax19.axhline(y=0.85, color='gold', ls='--')
-    ax19.set_title('19. Final Coherence')
-    ax19.set_ylim(0,1)
-    ax19.grid(True, alpha=0.3)
+    ax20.bar(['0-1','0-2','1-2'], final_coherence, color=['blue','red','green'], alpha=0.7)
+    ax20.axhline(y=0.85, color='gold', ls='--')
+    ax20.set_title('20. Final Coherence')
+    ax20.set_ylim(0,1)
+    ax20.grid(True, alpha=0.3)
     
-    # 20. HH² vs Consciousness
-    ax20 = plt.subplot(5, 4, 20)
+    # 21. HH² vs Consciousness
+    ax21 = plt.subplot(6, 4, 21)
     mean_C = np.mean(C, axis=0)
-    ax20.scatter(mean_C, HH2, c=HH2, cmap='hot', alpha=0.5, s=20)
+    ax21.scatter(mean_C, HH2, c=HH2, cmap='hot', alpha=0.5, s=20)
     
-
     trans_counts = dynamics.count_phase_transitions()
     text = "Phase transitions:\n"
     for node in range(3):
         text += f"Node {node}: {trans_counts[node]['down']}↓ {trans_counts[node]['up']}↑\n"
-    ax20.text(0.05, 0.95, text, transform=ax20.transAxes, fontsize=8,
+    ax21.text(0.05, 0.95, text, transform=ax21.transAxes, fontsize=8,
             verticalalignment='top', bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
-    ax20.set_title('20. HH² vs Consciousness')
-    ax20.grid(True, alpha=0.3)
+    ax21.set_title('21. HH² vs Consciousness')
+    ax21.grid(True, alpha=0.3)
     
-    plt.suptitle('20-PANEL DASHBOARD: Node 1 & 2 Show Dynamic Consciousness!', fontsize=12)
-    plt.tight_layout()
-    plt.savefig('comprehensive_20panel_dashboard.png', dpi=150, bbox_inches='tight')
+    plt.suptitle('21-PANEL DASHBOARD: Node 1 & 2 Show Dynamic Consciousness!', fontsize=16)
+    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+    plt.savefig('comprehensive_21panel_dashboard.png', dpi=150, bbox_inches='tight')
     plt.close()
-    print("    ✓ Saved: comprehensive_20panel_dashboard.png")
+    print("    ✓ Saved: comprehensive_21panel_dashboard.png")
 
 
 def plot_ghost_signal(dynamics):
