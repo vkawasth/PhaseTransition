@@ -40,3 +40,4 @@ Wavelets and 2nd order interaction effect - 3 nodes and 7 edges.
 <img width="577" height="440" alt="Screenshot 2026-03-30 at 10 43 30 AM" src="https://github.com/user-attachments/assets/7dff8ef4-b98c-4053-ba11-2a28a0a9ff69" />
 <img width="792" height="392" alt="Screenshot 2026-03-30 at 10 43 17 AM" src="https://github.com/user-attachments/assets/cae35d5b-9e95-498f-aac6-e6ee0dad7a5e" />
 <img width="1187" height="391" alt="Screenshot 2026-03-30 at 10 45 49 AM" src="https://github.com/user-attachments/assets/e41aca03-b9c6-49c3-8c89-2df45d55880c" />
+<img width="1792" height="739" alt="Screenshot 2026-03-30 at 5 02 41 PM" src="https://github.com/user-attachments/assets/abe1ea0c-73f2-4a15-b1ff-8b080c394613" />
