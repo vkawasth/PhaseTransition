@@ -43,3 +43,6 @@ Wavelets and 2nd order interaction effect - 3 nodes and 7 edges.
 Rees Algebra using Spectral Sheaves over quivers brings ability to track obstructions (via Hochschild Cohomology HH2) and deformations (HH1), which Cellular Sheaves over Graph simply can't see.
 https://www.jakobhansen.org/publications/gentleintroduction.pdf
 <img width="1792" height="739" alt="Screenshot 2026-03-30 at 5 02 41 PM" src="https://github.com/user-attachments/assets/abe1ea0c-73f2-4a15-b1ff-8b080c394613" />
+Siegel and Milnor snaps (Failing colimits and Spectral sheaves failing to glue as HH2 obstructions have created shards.
+
+<img width="596" height="552" alt="Screenshot 2026-03-30 at 7 54 43 PM" src="https://github.com/user-attachments/assets/c9a1d445-4b3c-4e2c-8cdd-1d0c8bffd300" />
