@@ -16,6 +16,100 @@ import warnings
 import pandas as pd
 from collections import deque
 warnings.filterwarnings('ignore')
+import matplotlib.pyplot as plt
+from matplotlib.patches import FancyArrowPatch
+
+import jax
+import jax.numpy as jnp
+from jax import jit, jacfwd
+jax.config.update("jax_enable_x64", True)
+
+EDGES = [(0,1), (1,0), (0,2), (2,0), (1,2), (2,1), (1,1)]
+
+def euler_step(state, t, dt, params_tuple):
+    # Unpack tuple
+    (half_life_A, half_life_B, alpha, beta, EC50_A, EC50_B,
+     hill_A, hill_B, *edge_weights_vals, radius_A, radius_B,
+     pore_radius, diffusivity_A, diffusivity_B,
+     membrane_thickness, base_flow_A, base_flow_B) = params_tuple
+
+    # Reconstruct edge_weights
+    edge_weights = {EDGES[i]: edge_weights_vals[i] for i in range(len(EDGES))}
+
+    # Unpack state
+    qA0, qA1, qA2, qB0, qB1, qB2, C0, C1, C2 = state
+
+    lambda_A = jnp.log(2) / half_life_A
+    lambda_B = jnp.log(2) / half_life_B
+
+    # Helper functions
+    def renkin_crone_factor(radius_ratio):
+        return jnp.where(radius_ratio >= 1, 0.0,
+                         (1 - radius_ratio)**2 * (1 - 2.104*radius_ratio + 2.09*radius_ratio**3 - 0.95*radius_ratio**5))
+
+    def transition_rate(edge, molecule):
+        u, v = edge
+        heartbeat = 1 + 0.3 * jnp.sin(2 * jnp.pi * t)
+        weight = edge_weights.get(edge, 1.0)
+        base_flow = base_flow_A if molecule == 'A' else base_flow_B
+        flow = base_flow * weight * heartbeat
+        if molecule == 'A':
+            radius = radius_A
+            diffusivity = diffusivity_A
+        else:
+            radius = radius_B
+            diffusivity = diffusivity_B
+        radius_ratio = radius / pore_radius
+        renkin = renkin_crone_factor(radius_ratio)
+        permeability = (diffusivity / membrane_thickness) * renkin
+        return flow * permeability * 300
+
+    # Precompute rates for each edge and molecule
+    rates_A = {edge: transition_rate(edge, 'A') for edge in EDGES}
+    rates_B = {edge: transition_rate(edge, 'B') for edge in EDGES}
+
+    # Initialize arrays for inflows/outflows
+    inflow_A = jnp.zeros(3)
+    outflow_A = jnp.zeros(3)
+    inflow_B = jnp.zeros(3)
+    outflow_B = jnp.zeros(3)
+
+    # Helper to get concentration at node
+    qA_node = jnp.array([qA0, qA1, qA2])
+    qB_node = jnp.array([qB0, qB1, qB2])
+
+    for edge in EDGES:
+        u, v = edge
+        rate_A = rates_A[edge]
+        rate_B = rates_B[edge]
+
+        # Outflow from u
+        outflow_A = outflow_A.at[u].add(rate_A * qA_node[u])
+        outflow_B = outflow_B.at[u].add(rate_B * qB_node[u])
+
+        # Inflow to v
+        inflow_A = inflow_A.at[v].add(rate_A * qA_node[u])
+        inflow_B = inflow_B.at[v].add(rate_B * qB_node[u])
+
+    # Update concentrations
+    qA_new = qA_node + (inflow_A - outflow_A - lambda_A * qA_node) * dt
+    qB_new = qB_node + (inflow_B - outflow_B - lambda_B * qB_node) * dt
+
+    # Consciousness update
+    C_node = jnp.array([C0, C1, C2])
+    activation = alpha * (1 - C_node) * (qB_node**hill_B) / (EC50_B**hill_B + qB_node**hill_B)
+    dampening = beta * C_node * (qA_node**hill_A) / (EC50_A**hill_A + qA_node**hill_A)
+    oscillation = 0.1 * jnp.sin(2 * jnp.pi * 0.6 * t) * (1 - C_node)
+    dC = (activation - dampening + oscillation) * dt
+    C_new = C_node + dC
+
+    # Clip
+    qA_new = jnp.clip(qA_new, 0, 5)
+    qB_new = jnp.clip(qB_new, 0, 6)
+    C_new = jnp.clip(C_new, 0, 1)
+
+    new_state = jnp.concatenate([qA_new, qB_new, C_new])
+    return new_state
 
 class MilnorSequestrator:
     """Isolates the 'Milnor Node' singular points during algebraic failure."""
@@ -53,6 +147,11 @@ class FullGraphDynamics:
         ]
         # 2. DEFINE THRESHOLD HERE (Move this up!)
         self.threshold = 0.3  
+        self.rate_series_A = {}  # key: edge, value: list of rates over time
+        self.rate_series_B = {}
+        for edge in self.edges:
+            self.rate_series_A[edge] = []
+            self.rate_series_B[edge] = []
         
         # 3. Now initialize Milnor and Siegel using the threshold
         self.milnor = MilnorSequestrator(threshold=self.threshold)
@@ -98,6 +197,20 @@ class FullGraphDynamics:
         self.HH2 = None
         self.plucker = None
         self.reverse_trajectories = []
+        self.radius_A = 0.5e-9
+        self.radius_B = 0.8e-9
+        self.pore_radius = 1.0e-9
+        self.diffusivity_A = 5e-10
+        self.diffusivity_B = 8e-10
+        self.membrane_thickness = 1e-6
+        self.base_flow_A = 4.0
+        self.base_flow_B = 6.0
+        self.M_list = []   # will store matrices
+        self.times = []    # corresponding times
+        
+        self.rate_count = 0
+        self.pair_HH2 = {}  # key: (i,j) with i<j, value: list of contributions per time step
+
     
     def flow_rate(self, edge, t, molecule='B'):
         heartbeat = 1 + 0.3 * np.sin(2 * np.pi * t)
@@ -124,7 +237,7 @@ class FullGraphDynamics:
     
     def compute_hochschild_invariants(self, t_idx):
         if t_idx < 2:
-            return 0, 0
+            return 0, 0, {}
         C_cur = self.C[:, t_idx]
         C_prev = self.C[:, t_idx - 1]
         qB_cur = self.qB[:, t_idx]
@@ -138,14 +251,17 @@ class FullGraphDynamics:
         else:
             HH2_val = 0
         # Non‑commutativity (Gerstenhaber bracket analog)
+        pair_contrib = {}
         comm = 0
         for i in range(3):
             for j in range(i+1, 3):
-                comm += abs(C_cur[i] * qB_cur[j] - C_cur[j] * qB_cur[i])
+                contrib = abs(C_cur[i] * qB_cur[j] - C_cur[j] * qB_cur[i])
+                pair_contrib[(i,j)] = contrib
+                comm += contrib
         HH2_val += 0.3 * comm
-        return HH1_val, HH2_val
+        return HH1_val, HH2_val, pair_contrib
     
-    def simulate(self, t_span=(0, 25), dt=0.02):
+    def simulate(self, t_span=(0, 25), dt=0.02, compute_operators=True):
         t = np.arange(t_span[0], t_span[1], dt)
         n_steps = len(t)
         self.t = t
@@ -169,6 +285,49 @@ class FullGraphDynamics:
         print("\n  Extreme flow configuration:")
         print(f"    Opiate base flow = 4.0, edge weights: 0→1={self.edge_weights[(0,1)]}, 0→2={self.edge_weights[(0,2)]}")
         print(f"    Norcain base flow = 6.0, dose amount = {self.dose_amount}")
+
+        # Prepare parameter dictionary
+        params = {
+            'half_life_A': self.half_life_A,
+            'half_life_B': self.half_life_B,
+            'alpha': self.alpha,
+            'beta': self.beta,
+            'EC50_A': self.EC50_A,
+            'EC50_B': self.EC50_B,
+            'hill_A': self.hill_A,
+            'hill_B': self.hill_B,
+            'edge_weights': self.edge_weights,
+            'radius_A': 0.5e-9,
+            'radius_B': 0.8e-9,
+            'pore_radius': 1.0e-9,
+            'diffusivity_A': 5e-10,
+            'diffusivity_B': 8e-10,
+            'membrane_thickness': 1e-6,
+            'base_flow_A': 4.0,
+            'base_flow_B': 6.0,
+        }
+
+        # After the initialisation, before the loop, prepare params_tuple and jitted functions
+        if compute_operators:
+            # Build params_tuple
+            edge_weights_vals = [self.edge_weights.get(e, 0.0) for e in EDGES]
+            params_tuple = (
+                self.half_life_A, self.half_life_B,
+                self.alpha, self.beta,
+                self.EC50_A, self.EC50_B,
+                self.hill_A, self.hill_B,
+                *edge_weights_vals,
+                self.radius_A, self.radius_B, self.pore_radius,
+                self.diffusivity_A, self.diffusivity_B, self.membrane_thickness,
+                self.base_flow_A, self.base_flow_B
+            )
+            # JIT the step function (with static args dt and params_tuple)
+            euler_step_jit = jit(euler_step, static_argnums=(2,3))
+            jac_step = jacfwd(euler_step_jit, argnums=0)
+            # Lists to store operators and times
+            self.M_list = []
+            self.M_times = []
+
         
         for i in range(n_steps - 1):
             dt_step = t[i+1] - t[i]
@@ -189,6 +348,10 @@ class FullGraphDynamics:
                         rate_B = self.transition_rate(edge, t[i], 'B')
                         inflow_A += rate_A * self.qA[src, idx_A] * dt_step
                         inflow_B += rate_B * self.qB[src, idx_B] * dt_step
+                        rate_A = self.transition_rate(edge, t[i], 'A')
+                        rate_B = self.transition_rate(edge, t[i], 'B')
+                        self.rate_series_A[edge].append(rate_A)
+                        self.rate_series_B[edge].append(rate_B)
                 
                 outflow_A = outflow_B = 0
                 for edge in self.edges:
@@ -223,16 +386,234 @@ class FullGraphDynamics:
                 avg_qB = np.mean(self.qB[:, i+1])
                 avg_C = np.mean(self.C[:, i+1])
                 self.ghost_signal[i+1] = self.siegel.apply_lock(avg_qA, avg_qB, avg_C)
+
+                # In the simulation loop (after computing new state or before), compute M
+                if compute_operators:
+                    # Build state array
+                    state = jnp.array([self.qA[0,i], self.qA[1,i], self.qA[2,i],
+                                    self.qB[0,i], self.qB[1,i], self.qB[2,i],
+                                    self.C[0,i], self.C[1,i], self.C[2,i]])
+                    # Skip if a dose was applied at this time (i.e., if t[i] is near a dose time)
+                    # For simplicity, we'll just compute M every step; if dose occurs, it will be a jump, but we can still compute.
+                    M = jac_step(state, t[i], dt, params_tuple)
+                    self.M_list.append(np.array(M))
+                    self.M_times.append(t[i])
             
-            self.HH1[i+1], self.HH2[i+1] = self.compute_hochschild_invariants(i+1)
+            self.HH1[i+1], self.HH2[i+1], self.pair_contrib = self.compute_hochschild_invariants(i+1)
+            for (ii,jj), val in self.pair_contrib.items():
+                if (ii,jj) not in self.pair_HH2:
+                    self.pair_HH2[(ii,jj)] = []
+                self.pair_HH2[(ii,jj)].append(val)
         
         # Compute Plücker trajectory
         self.plucker = self.compute_plucker_trajectory()
         
         # Detect phase transitions and build reverse trajectories
         self.detect_phase_transitions()
+        self.avg_pair_HH2 = {}
+        for (i,j), vals in self.pair_HH2.items():
+            self.avg_pair_HH2[(i,j)] = np.mean(vals)
         
-        return self.t, self.C, self.qA, self.qB, self.HH1, self.HH2
+        return self.t, self.C, self.qA, self.qB, self.HH1, self.HH2, self.M_list
+    
+    def build_quiver_from_rates(self, threshold=0.001, combine='sum'):
+        """
+        Build a directed weighted quiver from the average transition rates.
+        combine: 'sum' (add A and B), 'max' (take max), or 'A'/'B' for single molecule.
+        """
+        # Compute average rates
+        avg_A = {}
+        avg_B = {}
+        for edge in self.edges:
+            avg_A[edge] = np.mean(self.rate_series_A[edge])
+            avg_B[edge] = np.mean(self.rate_series_B[edge])
+
+        # Build node-level weights
+        node_weight = np.zeros((3,3))
+        for edge in self.edges:
+            u, v = edge
+            if combine == 'sum':
+                w = avg_A[edge] + avg_B[edge]
+            elif combine == 'max':
+                w = max(avg_A[edge], avg_B[edge])
+            else:
+                w = avg_A[edge]   # fallback
+            node_weight[u, v] = max(node_weight[u, v], w)
+
+        # Extract edges above threshold
+        edges = []
+        weights = []
+        for i in range(3):
+            for j in range(3):
+                if i != j and node_weight[i, j] > threshold:
+                    edges.append((i, j))
+                    weights.append(node_weight[i, j])
+        return edges, weights
+
+    def compute_triple_stats_from_rates(self):
+        """
+        For each triple (i,j,k), compute mean and variance of
+        (rate_ij * rate_jk) - rate_ik over time.
+        """
+        # Convert the rate series to numpy arrays for speed
+        # We'll build a dict mapping (i,j) -> array of combined rates
+        combined_rates = {}
+        for edge in self.edges:
+            arr = np.array(self.rate_series_A[edge]) + np.array(self.rate_series_B[edge])
+            combined_rates[edge] = arr
+
+        n_t = len(next(iter(self.rate_series_A.values())))  # number of time steps
+        results = {}
+
+        for i in range(3):
+            for j in range(3):
+                for k in range(3):
+                    # Get the time series for the three edges (if they exist)
+                    rate_ij = combined_rates.get((i, j), np.zeros(n_t))
+                    rate_jk = combined_rates.get((j, k), np.zeros(n_t))
+                    rate_ik = combined_rates.get((i, k), np.zeros(n_t))
+
+                    dev = rate_ij * rate_jk - rate_ik
+                    mean_dev = np.mean(dev)
+                    var_dev = np.var(dev)
+                    results[(i, j, k)] = (mean_dev, var_dev)
+        return results
+    
+    # Build quiver from Operator Flow Algebra
+    def build_quiver_from_operators(self, M_list, threshold=0.01):
+        var_to_node = [0,1,2, 0,1,2, 0,1,2]   # indices 0-2: qA; 3-5: qB; 6-8: C
+        # Average transition weights over time
+        avg_M = np.mean(M_list, axis=0)   # shape (9,9)
+        # For each pair of nodes (i,j), the weight is the average of (M_t)_{ij}
+        # But note: the 9 variables correspond to nodes 0,1,2 each with three variables (qA, qB, C).
+        # We need to aggregate to node level. For simplicity, we can take the maximum over the three variable pairs.
+        # Or treat each variable separately for a finer quiver. Here we'll aggregate by node.
+        # Let's define mapping: variable index -> node
+        var_to_node = [0,1,2, 0,1,2, 0,1,2]  # indices 0-2: qA; 3-5: qB; 6-8: C
+        node_weight = np.zeros((3,3))
+        for i in range(9):
+            for j in range(9):
+                node_i = var_to_node[i]
+                node_j = var_to_node[j]
+                node_weight[node_i, node_j] = max(node_weight[node_i, node_j], avg_M[i,j])  # use max or sum
+        print("Node weight matrix:\n", node_weight)
+        # Now threshold
+        edges = []
+        weights = []
+        for i in range(3):
+            for j in range(3):
+                if i != j and node_weight[i,j] > threshold:
+                    edges.append((i,j))
+                    weights.append(node_weight[i,j])
+        return edges, weights
+    
+    def compute_triple_stats(self, M_list):
+        var_to_node = [0,1,2, 0,1,2, 0,1,2]   # variable index → node (0,1,2)
+        n = len(M_list)
+        # Pre-allocate arrays for each triple (i,j,k)
+        # We'll use dictionaries keyed by (i,j,k)
+        dev_mean = {}
+        dev_var = {}
+        # For each t from 0 to n-2
+        for t_idx in range(n-1):
+            M = M_list[t_idx]
+            M_next = M_list[t_idx+1]
+            # Compute product M_next @ M for 2-step evolution
+            M2 = M_next @ M
+            # For all i,j,k (0..2 nodes) – we need to aggregate variable-level to node-level
+            # We'll aggregate by node (as before) by taking maximum over the variable contributions
+            # This is a simplification; you could do a more refined analysis.
+            for i_node in range(3):
+                for j_node in range(3):
+                    for k_node in range(3):
+                        # Get all variable indices that map to these nodes
+                        var_i = [idx for idx in range(9) if var_to_node[idx]==i_node]
+                        var_j = [idx for idx in range(9) if var_to_node[idx]==j_node]
+                        var_k = [idx for idx in range(9) if var_to_node[idx]==k_node]
+                        # Take the maximum over the product of entries? Or sum? Here we'll take max to capture strongest path.
+                        prod_max = 0.0
+                        for ii in var_i:
+                            for jj in var_j:
+                                for kk in var_k:
+                                    prod = M[ii,jj] * M[jj,kk]
+                                    if prod > prod_max:
+                                        prod_max = prod
+                        # For the 2-step direct, take maximum over the entries from i_node to k_node in M2
+                        direct_max = 0.0
+                        for ii in var_i:
+                            for kk in var_k:
+                                val = M2[ii,kk]
+                                if val > direct_max:
+                                    direct_max = val
+                        dev = prod_max - direct_max
+                        key = (i_node, j_node, k_node)
+                        if key not in dev_mean:
+                            dev_mean[key] = []
+                        dev_mean[key].append(dev)
+        # Compute mean and variance for each key
+        results = {}
+        for key, vals in dev_mean.items():
+            arr = np.array(vals)
+            mean_val = np.mean(arr)
+            var_val = np.var(arr)
+            results[key] = (mean_val, var_val)
+        return results
+    
+    def detect_missing_structure(self, relations, edges):
+        missing = []
+        for rel in relations:
+            if rel[0] == 'path':
+                i, j, k = rel[1], rel[2], rel[3]
+                if (i,k) not in edges:
+                    missing.append((i,k))
+        return missing
+    
+    def localize_missing_structure(self, relations, edges, results):
+        # results: dict (i,j,k) -> (mean, var)
+        missing_candidates = []
+        for rel in relations:
+            if rel[0] == 'path':
+                i, j, k = rel[1], rel[2], rel[3]
+                if (i,k) not in edges:
+                    mean_val, var_val = results[(i,j,k)]
+                    missing_candidates.append(((i,k), mean_val, var_val))
+        return missing_candidates
+    
+    def run_hidden_structure_analysis(self, threshold=0.001, delta=0.05, tau=0.01):
+        # Build quiver from rates
+        edges, weights = self.build_quiver_from_rates(threshold=threshold)
+        print("Quiver edges (from rates):", edges)
+        print("Weights:", weights)
+        self.inferred_edges = edges
+        self.inferred_weights = weights
+
+        # Compute triple statistics
+        results = self.compute_triple_stats_from_rates()
+
+        # Infer relations
+        relations = []
+        for (i, j, k), (mean_val, var_val) in results.items():
+            # Skip self‑loops and any triple that involves the same node twice
+            if i == j or j == k or i == k:
+                continue
+            if abs(mean_val) < delta and var_val < tau:
+                relations.append(('path', i, j, k))
+        print("Inferred relations:", relations)
+
+        # Detect missing edges
+        missing = []
+        for rel in relations:
+            if rel[0] == 'path':
+                i, j, k = rel[1], rel[2], rel[3]
+                if (i, k) not in edges:
+                    missing.append((i, k))
+        if missing:
+            print("Possible missing edges (hidden structure):", missing)
+        else:
+            print("No missing edges detected.")
+
+        return edges, weights, relations, missing
+        
     
     def compute_plucker_trajectory(self):
         n = len(self.t)
@@ -336,6 +717,61 @@ class FullGraphDynamics:
             z = self.compute_path_zeta(traj)
             prime_zeta.append(z)
         return prime_zeta
+
+import matplotlib.pyplot as plt
+from matplotlib.patches import FancyArrowPatch
+
+def plot_quiver_and_HH2(dynamics):
+    if not hasattr(dynamics, 'inferred_edges') or not dynamics.inferred_edges:
+        print("No inferred quiver edges found.")
+        return
+
+    edges = dynamics.inferred_edges
+    weights = dynamics.inferred_weights
+    avg_pair_HH2 = dynamics.avg_pair_HH2
+
+    # Build node positions
+    pos = {0: (0, 0), 1: (1, 0.5), 2: (0.5, 1)}
+
+    max_weight = max(weights) if weights else 1.0
+    max_hh2 = max(avg_pair_HH2.values()) if avg_pair_HH2 else 1.0
+
+    fig, ax = plt.subplots(figsize=(8, 6))
+    ax.set_aspect('equal')
+    ax.set_xlim(-0.2, 1.2)
+    ax.set_ylim(-0.2, 1.2)
+
+    # Draw edges first (so they appear behind nodes)
+    for (u, v), w in zip(edges, weights):
+        # Check for reciprocal edge to curve
+        rad = 0.15 if (v, u) in edges else 0.0
+        style = f"arc3,rad={rad}"
+        color_val = avg_pair_HH2.get((u, v), 0.0) / max_hh2 if max_hh2 > 0 else 0.5
+        width = 0.5 + 2.5 * (w / max_weight) if max_weight > 0 else 1.0
+        arrow = FancyArrowPatch(pos[u], pos[v], connectionstyle=style,
+                                arrowstyle='->', lw=width,
+                                color=plt.cm.hot(color_val),
+                                mutation_scale=15, zorder=1)
+        ax.add_patch(arrow)
+
+    # Draw nodes (on top)
+    for node, (x, y) in pos.items():
+        circle = plt.Circle((x, y), 0.08, facecolor='lightblue', edgecolor='black', zorder=2)
+        ax.add_patch(circle)
+        ax.text(x, y, str(node), ha='center', va='center', fontsize=12, fontweight='bold', zorder=3)
+
+    # Colorbar
+    sm = plt.cm.ScalarMappable(cmap=plt.cm.hot, norm=plt.Normalize(0, max_hh2))
+    sm.set_array([])
+    cbar = plt.colorbar(sm, ax=ax, shrink=0.8, pad=0.05)
+    cbar.set_label('HH₂ contribution')
+
+    ax.set_title("Inferred quiver (edge width ∝ flow, color ∝ HH₂ contribution)")
+    plt.axis('off')
+    plt.tight_layout()
+    plt.savefig('inferred_quiver_HH2.png', dpi=150, bbox_inches='tight')
+    plt.show()
+    print("    ✓ Saved: inferred_quiver_HH2.png")
     
 # ============================================================================
 # PART: WAVELET QUIVER (6 vertices, 28 arrows)
@@ -431,16 +867,130 @@ class DynamicWaveletQuiver:
         new_state[self.V_KAPPA] = np.clip(new_state[self.V_KAPPA], 0, 1)
         return new_state
 
-    def simulate_quiver(self, initial_state, t_span):
+    def simulate_quiver(self, initial_state, t_span, store_rates=True):
         t = np.arange(t_span[0], t_span[1], self.dt)
         states = np.zeros((len(t), 6))
         current = initial_state.copy()
+        self.rate_series = {}   # key: (src,tgt) -> list
         for i, ti in enumerate(t):
             states[i] = current
+            rates = self.get_dynamic_rates(ti, current)
+            for (src, tgt), rate in rates.items():
+                self.rate_series.setdefault((src, tgt), []).append(rate)
             current = self.evolve(current, ti)
         return t, states
+    
+    def build_quiver_from_wavelet_rates(self, threshold=0.001):
+        avg_rates = {}
+        for (src, tgt), vals in self.rate_series.items():
+            avg_rates[(src, tgt)] = np.mean(vals)
+        edges = []
+        weights = []
+        for (src, tgt), w in avg_rates.items():
+            if src != tgt and w > threshold:
+                edges.append((src, tgt))
+                weights.append(w)
+        return edges, weights
+    
+    def compute_triple_stats_from_wavelet(self):
+        n_t = len(next(iter(self.rate_series.values())))
+        # Convert to arrays for speed
+        rate_arr = {k: np.array(v) for k, v in self.rate_series.items()}
+        results = {}
+        for i in range(6):
+            for j in range(6):
+                for k in range(6):
+                    if i == j or j == k or i == k:
+                        continue
+                    # Get time series
+                    rate_ij = rate_arr.get((i, j), np.zeros(n_t))
+                    rate_jk = rate_arr.get((j, k), np.zeros(n_t))
+                    rate_ik = rate_arr.get((i, k), np.zeros(n_t))
+                    dev = rate_ij * rate_jk - rate_ik
+                    results[(i,j,k)] = (np.mean(dev), np.var(dev))
+        return results
+    
+    def compute_wavelet_obstruction(self):
+        """
+        Compute a per-edge obstruction measure (variance of rate over time)
+        and return a dict mapping (src, tgt) -> obstruction value.
+        """
+        obstruction = {}
+        for (src, tgt), rates in self.rate_series.items():
+            # Use variance as obstruction
+            obstruction[(src, tgt)] = np.var(rates)
+        return obstruction
 
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.patches import FancyArrowPatch
 
+def plot_quiver_6node(edges, weights, avg_pair_HH2, title="Wavelet Quiver", filename="wavelet_quiver.png"):
+    """
+    Draw a 6‑node directed quiver with:
+      - Nodes placed on a circle.
+      - Edge width ∝ weight.
+      - Edge color ∝ HH₂ contribution (hot colormap).
+    Parameters:
+        edges: list of (src, tgt) tuples.
+        weights: list of floats, same order as edges.
+        avg_pair_HH2: dict mapping (i,j) -> average HH₂ contribution (or 0 if not computed).
+        title: string for plot title.
+        filename: output filename.
+    """
+    # Node positions in a circle
+    n_nodes = 6
+    angle = 2 * np.pi / n_nodes
+    pos = {i: (np.cos(i * angle), np.sin(i * angle)) for i in range(n_nodes)}
+
+    # Normalize weight and HH₂ for scaling
+    max_weight = max(weights) if weights else 1.0
+    max_hh2 = max(avg_pair_HH2.values()) if avg_pair_HH2 else 1.0
+
+    fig, ax = plt.subplots(figsize=(8, 8))
+    ax.set_aspect('equal')
+    ax.set_xlim(-1.2, 1.2)
+    ax.set_ylim(-1.2, 1.2)
+
+    # --- Draw edges (first layer) ---
+    for (u, v), w in zip(edges, weights):
+        # Curve if reciprocal edge exists
+        rad = 0.15 if (v, u) in edges else 0.0
+        style = f"arc3,rad={rad}"
+        # Color from HH₂
+        hh2_val = avg_pair_HH2.get((u, v), 0.0)
+        color_val = hh2_val / max_hh2 if max_hh2 > 0 else 0.5
+        width = 0.5 + 2.5 * (w / max_weight) if max_weight > 0 else 1.0
+        arrow = FancyArrowPatch(pos[u], pos[v],
+                                connectionstyle=style,
+                                arrowstyle='->',
+                                lw=width,
+                                color=plt.cm.hot(color_val),
+                                mutation_scale=15,
+                                zorder=1)
+        ax.add_patch(arrow)
+
+    # --- Draw nodes (on top) ---
+    # Node labels: a, b, ω₁, ω₂, φ, κ
+    labels = ['a', 'b', 'ω₁', 'ω₂', 'φ', 'κ']
+    for i, (x, y) in pos.items():
+        circle = plt.Circle((x, y), 0.12, facecolor='lightblue', edgecolor='black', zorder=2)
+        ax.add_patch(circle)
+        ax.text(x, y, labels[i], ha='center', va='center',
+                fontsize=10, fontweight='bold', zorder=3)
+
+    # --- Colorbar for HH₂ ---
+    sm = plt.cm.ScalarMappable(cmap=plt.cm.hot, norm=plt.Normalize(0, max_hh2))
+    sm.set_array([])
+    cbar = plt.colorbar(sm, ax=ax, shrink=0.8, pad=0.05)
+    cbar.set_label('HH₂ contribution')
+
+    ax.set_title(title)
+    plt.axis('off')
+    plt.tight_layout()
+    plt.savefig(filename, dpi=150, bbox_inches='tight')
+    plt.show()
+    print(f"    ✓ Saved: {filename}")
 
 # Graph Spectral sheaf over physical graph
 class SpectralSheaf:
@@ -811,8 +1361,8 @@ def add_quiver_spectral_analysis(quiver, states, t_q):
         'triple_heatmap': triple_heatmap
     }
 
-# Tracks molecules as they move for Chern class jump
-class ReverseHironakaMoleculeResolver:
+# Tracks molecules as they move for Chern class jump - Single molecule tracker.
+class ReverseHironakaMoleculeResolver_S:
     def __init__(self):
         # The 7 physical edges of the Opiate/Norcain graph
         self.edges = [(0,1), (1,0), (0,2), (2,0), (1,2), (2,1), (1,1)]
@@ -1348,8 +1898,11 @@ def main():
     print("="*100)
     
     dynamics = FullGraphDynamics()
-    t, C, qA, qB, HH1, HH2 = dynamics.simulate()
-    t_full, C_full, qA_full, qB_full, HH1_full, HH2_full = t, C, qA, qB, HH1, HH2
+    t, C, qA, qB, HH1, HH2, Mt = dynamics.simulate()
+    t_full, C_full, qA_full, qB_full, HH1_full, HH2_full, M_list = t, C, qA, qB, HH1, HH2, Mt
+
+    edges, weights, relations, missing = dynamics.run_hidden_structure_analysis()
+    plot_quiver_and_HH2(dynamics)
 
     # Hironaka Singularity Resolution -- PROTOCOL 7 Steps
     # Singularity index
@@ -1500,6 +2053,11 @@ def main():
     quiver = DynamicWaveletQuiver(dynamics)   # 'dynamics' is your simulation object
     t_q, states = quiver.simulate_quiver(initial_state, (t[0], t[-1]))
 
+    # Build quiver using operator flow algebra
+    # Build wavelet quiver edges and weights from the rate series
+    edges_wavelet, weights_wavelet = quiver.build_quiver_from_wavelet_rates(threshold=0.001)  # you need to implement this method
+    obstruction_wavelet = quiver.compute_wavelet_obstruction()
+
     print("\n--- INITIATING DYNAMIC REVERSE HIRONAKA RESOLUTION ---")
     resolver = ReverseHironakaMoleculeResolver()
     
@@ -1522,6 +2080,9 @@ def main():
     plt.grid(True, alpha=0.3)
     plt.savefig('hironaka_revival_path_DYNAMIC.png', dpi=150)
     print("  -> Dynamic trajectory saved to hironaka_revival_path_DYNAMIC.png")
+
+    plot_quiver_6node(edges_wavelet, weights_wavelet, obstruction_wavelet,
+                  title="Wavelet Quiver (rate variance)", filename="wavelet_quiver.png")
 
     # 3. Build the spectral sheaf on the quiver
     sheafq = QuiverSpectralSheaf(quiver)
