@@ -49,3 +49,8 @@ Siegel and Milnor snaps (Failing colimits and Spectral sheaves failing to glue a
 Prolate Operator lining up with HH2 obstruction Sigel Half Space to Klien Quadric to Toric Dynamics.
 
 <img width="1950" height="1614" alt="Screenshot 2026-03-30 at 8 22 11 PM" src="https://github.com/user-attachments/assets/6851c7f4-ba6e-4b0c-a970-767710d04ef7" />
+Building quivers automatically with HH2 information Operator Semigroup implementation of flows on Graph
+
+<img width="712" height="1165" alt="Screenshot 2026-04-01 at 3 11 02 AM" src="https://github.com/user-attachments/assets/41a46e49-1054-490c-89cb-95701ff77b88" />
+<img width="742" height="556" alt="Screenshot 2026-04-01 at 3 04 49 AM" src="https://github.com/user-attachments/assets/98b2773e-1f08-4a63-8374-10ca84297be3" />
+<img width="782" height="756" alt="Screenshot 2026-04-01 at 3 04 06 AM" src="https://github.com/user-attachments/assets/fa81ea69-b6ab-4a26-b087-a5b00961dc0b" />
