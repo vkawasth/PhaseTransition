@@ -57,6 +57,7 @@ Operator Semigroup Algebra Generated Quivers : Purely from flow information: The
 <img width="742" height="556" alt="Screenshot 2026-04-01 at 3 04 ![Uploading Screenshot 2026-04-02 at 10.19.11 AM.png…]()
 49 AM" src="https://github.com/user-attachments/assets/98b2773e-1f08-4a63-8374-10ca84297be3" />
 <img width="782" height="756" alt="Screenshot 2026-04-01 at 3 04 06 AM" src="https://github.com/user-attachments/assets/fa81ea69-b6ab-4a26-b087-a5b00961dc0b" />
-Blood flow Dynamics with all Paths, some approximated
+
+From example of 3 nodes 7 edges to full mouse brain : Blood flow Dynamics with all Paths, some (VTA-SN) approximated:
 <img width="1953" height="1389" alt="Screenshot 2026-04-02 at 10 15 42 AM" src="https://github.com/user-attachments/assets/c9d92654-b0cd-4c1a-ac5a-05203e30c6cf" />
 
