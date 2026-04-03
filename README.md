@@ -61,3 +61,9 @@ Operator Semigroup Algebra Generated Quivers : Purely from flow information: The
 From example of 3 nodes 7 edges to full mouse brain : Blood flow Dynamics with all Paths, some (VTA-SN) approximated:
 <img width="1953" height="1389" alt="Screenshot 2026-04-02 at 10 15 42 AM" src="https://github.com/user-attachments/assets/c9d92654-b0cd-4c1a-ac5a-05203e30c6cf" />
 
+Use Perverse Sheafs on Regions to aggregate defects and predict missing structure by observing FLOW, defects on FLOW.
+INOUT
+<img width="1041" height="726" alt="Screenshot 2026-04-03 at 4 10 13 PM" src="https://github.com/user-attachments/assets/2fb26df7-cce5-41eb-9b5d-026ceb978353" />
+EXPECTED OUTPUT (Region information may not figure out subregional information... i.e. Will know CIA, Mossad are dusruptoing... will not know who in CIA/how many employees (will know some count based on complexity of task but not their exact roles/functions). -- See Sheaf GNN... we can train GNNs to even detect that.
+<img width="1061" height="886" alt="Screenshot 2026-04-03 at 4 19 09 PM" src="https://github.com/user-attachments/assets/d5006779-8dec-4e90-af68-4e3a5ebc0cac" />
+
