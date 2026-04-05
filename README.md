@@ -113,4 +113,10 @@ Resolved Cartan Matrix (Regional Coupling):
 
 
 <img width="1408" height="768" alt="Gemini_Generated_Image_4s8pnl4s8pnl4s8p" src="https://github.com/user-attachments/assets/13671600-b90c-4155-a568-5ca4172c64d0" />
+<img width="1148" height="1176" alt="Screenshot 2026-04-05 at 12 10 24 AM" src="https://github.com/user-attachments/assets/9229e2d9-1c24-4689-bb78-894594f69cf1" />
+
+HH2 + Loop generation
+
+
+![Uploading Screenshot 2026-04-05 at 12.10.24 AM.png…]()
 
