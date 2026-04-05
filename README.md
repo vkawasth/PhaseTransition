@@ -117,8 +117,10 @@ Resolved Cartan Matrix (Regional Coupling):
 
 HH2 + Loop generation
 
+All AI Generated (Gemini, Deepseek, Chat GPT) Scripts below are incorrect as none of them are aware that GAP QPA can't handle inhomogeneous paths.
+<img width="1148" height="1176" alt="Screenshot 2026-04-05 at 12 10 24 AM" src="https://github.com/user-attachments/assets/667c8302-7246-4552-9803-1c0c1be1428e" />
 
-![Uploading Screenshot 2026-04-05 at 12.10.24 AM.png…]()
+
 
 Why GAP QPA will not work?
 Why scalar‑weighted relations are essential for perverse sheaf models. The scalar coefficients in our quadratic relations encode critical geometric data, such as monodromy weights, intersection numbers, or the multiplicities of edge flows between brain regions. Removing these scalars – i.e., reducing the algebra to a radical‑square‑zero quotient – collapses all such distinctions, forcing every length‑2 path to zero and thereby destroying the structure needed to represent perverse sheaves or their deformation theory. In particular, the resulting algebra would no longer capture the relative strengths of connections or the gluing data along strata, making it unsuitable for any meaningful sheaf‑theoretic interpretation. Therefore, preserving the scalar‑weighted inhomogeneous relations is not optional for our application.
