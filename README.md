@@ -71,6 +71,10 @@ EXPECTED OUTPUT (Region information may not figure out subregional information..
 Using SAGE GAP/QPA
 
 <img width="1579" height="482" alt="Screenshot 2026-04-04 at 10 46 12 PM" src="https://github.com/user-attachments/assets/e304eabd-e1f8-486a-a9ef-e5e98d64d472" />
+
+<img width="1581" height="249" alt="Screenshot 2026-04-04 at 10 47 51 PM" src="https://github.com/user-attachments/assets/e2a189ea-9246-4e5b-b35e-aa69718b08dd" />
+
+
 In Text
 age: libgap.eval("k_field := GF(101)")
 
