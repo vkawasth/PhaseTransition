@@ -1,0 +1,10 @@
+LoadPackage("qpa");
+k := GF(101);
+Q_vertices := ['CA1sp', 'BLA', 'HY', 'HPF', 'sAMY', 'LA'];
+Q_arrows := [["CA1sp", "HPF", "f_CA1sp_HPF"], ["HPF", "CA1sp", "f_HPF_CA1sp"], ["BLA", "LA", "f_BLA_LA"], ["BLA", "sAMY", "f_BLA_sAMY"], ["CA1sp", "sAMY", "f_CA1sp_sAMY"], ["HPF", "BLA", "f_HPF_BLA"], ["HPF", "sAMY", "f_HPF_sAMY"], ["LA", "BLA", "f_LA_BLA"], ["LA", "sAMY", "f_LA_sAMY"], ["sAMY", "BLA", "f_sAMY_BLA"], ["sAMY", "HPF", "f_sAMY_HPF"], ["sAMY", "LA", "f_sAMY_LA"], ["HY", "sAMY", "f_HY_sAMY"], ["sAMY", "HY", "f_sAMY_HY"]];
+Q := Quiver(Q_vertices, Q_arrows);
+A := PathAlgebra(k, Q);
+rels := [];
+I := Ideal(A, rels);
+B := A / I;
+Print("Success: Brain Algebra B defined with ", Dimension(B), " dimensions.\n");
