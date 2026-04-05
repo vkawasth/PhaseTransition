@@ -68,3 +68,39 @@ INPUT
 EXPECTED OUTPUT (Region information may not figure out subregional information... i.e. Will know CIA, Mossad are dusruptoing... will not know who in CIA/how many employees (will know some count based on complexity of task but not their exact roles/functions). -- See Sheaf GNN... we can train GNNs to even detect that.
 <img width="1061" height="886" alt="Screenshot 2026-04-03 at 4 19 09 PM" src="https://github.com/user-attachments/assets/d5006779-8dec-4e90-af68-4e3a5ebc0cac" />
 
+Using SAGE GAP/QPA
+age: libgap.eval("k_field := GF(101)")
+GF(101)
+sage: # Step 2: Re-create the Path Algebra A within the QPA context
+....: libgap.eval("A_qpa := PathAlgebra(k_field, Q)")
+....: 
+....: # Step 3: Define the relations (all compositions of arrows)
+....: # We perform the loop in GAP and store it as one list
+....: libgap.eval("arrs := Filtered(GeneratorsOfAlgebra(A_qpa), x -> not IsIdempotent(x))")
+....: libgap.eval("rels_qpa := [ ]")
+....: libgap.eval("for a in arrs do for b in arrs do p := a*b; if not IsZero(p) then Add(rels_qpa, p); fi; od; od")
+....: 
+....: # Step 4: The Final Quotient (The Resolution)
+....: libgap.eval("B_final := A_qpa / rels_qpa")
+....: 
+....: # Step 5: Verification
+....: print(f"Verified Finite Dimension: {libgap.eval('Dimension(B_final)')}")
+<GF(101)[<quiver with 6 vertices and 14 arrows>]>
+[ (Z(101)^0)*f_CA1sp_HPF, (Z(101)^0)*f_HPF_CA1sp, (Z(101)^0)*f_BLA_LA, (Z(101)^0)*f_BLA_sAMY, (Z(101)^0)*f_CA1sp_sAMY, (Z(101)^0)*f_HPF_BLA, (Z(101)^0)*f_HPF_sAMY, (Z(101)^0)*f_LA_BLA, (Z(101)^0)*f_LA_sAMY, (Z(101)^0)*f_sAMY_BLA, (Z(101)^0)*f_sAMY_HPF, (Z(101)^0)*f_sAMY_LA, (Z(101)^0)*f_HY_sAMY, (Z(101)^0)*f_sAMY_HY ]
+[  ]
+<GF(101)[<quiver with 6 vertices and 14 arrows>]/<two-sided ideal in <GF(101)[<quiver with 6 vertices and 14 arrows>]>, (39 generators)>>
+Verified Finite Dimension: 20
+sage: cartan = libgap.eval("CartanMatrix(B_final)")
+....: print("\nResolved Cartan Matrix (Regional Coupling):")
+....: print(cartan)
+....: 
+....: # This will return the Global Dimension (should be 1)
+....: gldim = libgap.eval("GlobalDimensionOfAlgebra(B_final)")
+....: print(f"Global Dimension (Spectral Depth): {gldim}")
+
+Resolved Cartan Matrix (Regional Coupling):
+[ [ 1, 0, 0, 1, 1, 0 ], [ 0, 1, 0, 0, 1, 1 ], [ 0, 0, 1, 0, 1, 0 ], [ 1, 1, 0, 1, 1, 0 ], [ 0, 1, 1, 1, 1, 1 ], [ 0, 1, 0, 0, 1, 1 ] ]
+
+
+<img width="1408" height="768" alt="Gemini_Generated_Image_4s8pnl4s8pnl4s8p" src="https://github.com/user-attachments/assets/13671600-b90c-4155-a568-5ca4172c64d0" />
+
