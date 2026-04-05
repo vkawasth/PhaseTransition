@@ -69,8 +69,13 @@ EXPECTED OUTPUT (Region information may not figure out subregional information..
 <img width="1061" height="886" alt="Screenshot 2026-04-03 at 4 19 09 PM" src="https://github.com/user-attachments/assets/d5006779-8dec-4e90-af68-4e3a5ebc0cac" />
 
 Using SAGE GAP/QPA
+
+<img width="1579" height="482" alt="Screenshot 2026-04-04 at 10 46 12 PM" src="https://github.com/user-attachments/assets/e304eabd-e1f8-486a-a9ef-e5e98d64d472" />
+In Text
 age: libgap.eval("k_field := GF(101)")
+
 GF(101)
+
 sage: # Step 2: Re-create the Path Algebra A within the QPA context
 ....: libgap.eval("A_qpa := PathAlgebra(k_field, Q)")
 ....: 
@@ -85,6 +90,7 @@ sage: # Step 2: Re-create the Path Algebra A within the QPA context
 ....: 
 ....: # Step 5: Verification
 ....: print(f"Verified Finite Dimension: {libgap.eval('Dimension(B_final)')}")
+
 <GF(101)[<quiver with 6 vertices and 14 arrows>]>
 [ (Z(101)^0)*f_CA1sp_HPF, (Z(101)^0)*f_HPF_CA1sp, (Z(101)^0)*f_BLA_LA, (Z(101)^0)*f_BLA_sAMY, (Z(101)^0)*f_CA1sp_sAMY, (Z(101)^0)*f_HPF_BLA, (Z(101)^0)*f_HPF_sAMY, (Z(101)^0)*f_LA_BLA, (Z(101)^0)*f_LA_sAMY, (Z(101)^0)*f_sAMY_BLA, (Z(101)^0)*f_sAMY_HPF, (Z(101)^0)*f_sAMY_LA, (Z(101)^0)*f_HY_sAMY, (Z(101)^0)*f_sAMY_HY ]
 [  ]
