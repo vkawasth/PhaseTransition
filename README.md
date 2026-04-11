@@ -131,5 +131,9 @@ AI does not know path algebra and perverse sheafs, it only pretends to complete 
 
 <img width="1196" height="1665" alt="Screenshot 2026-04-05 at 3 39 14 PM" src="https://github.com/user-attachments/assets/47649358-cf60-454f-abc5-d1919a8225d1" />
 
+Non Commutative Algebra HH2 computation -- Toy example single relation f*o = 37*o
+<img width="825" height="596" alt="Screenshot 2026-04-11 at 2 38 04 PM" src="https://github.com/user-attachments/assets/38601260-4a4d-408b-8590-29a625495751" />
+
+
 
 
