@@ -134,6 +134,11 @@ AI does not know path algebra and perverse sheafs, it only pretends to complete 
 Non Commutative Algebra HH2 computation -- Toy example single relation a*f = 37*o
 <img width="825" height="596" alt="Screenshot 2026-04-11 at 2 38 04 PM" src="https://github.com/user-attachments/assets/38601260-4a4d-408b-8590-29a625495751" />
 
+MAGMA and Curvature -- Associativity breaks if one assumes flat head. No one has flat head. Curved Maurer-Cartan Equation.
+
+<img width="871" height="633" alt="Screenshot 2026-04-12 at 10 08 31 PM" src="https://github.com/user-attachments/assets/66877439-14ee-46d8-8156-6a52dae9d711" />
+
+
 
 
 
