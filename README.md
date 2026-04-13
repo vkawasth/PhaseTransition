@@ -138,6 +138,11 @@ MAGMA and Curvature -- Associativity breaks if one assumes flat head. No one has
 
 <img width="871" height="633" alt="Screenshot 2026-04-12 at 10 08 31 PM" src="https://github.com/user-attachments/assets/66877439-14ee-46d8-8156-6a52dae9d711" />
 
+A infinity algebra and move from discarding associativity fixing to accepting deformations produced Septohippocamp;al path all using Algebraic Geometry.
+
+<img width="1326" height="394" alt="Screenshot 2026-04-13 at 4 41 29 PM" src="https://github.com/user-attachments/assets/35ad174b-7580-4ebf-bbbf-95e697ad7a20" />
+
+
 
 
 
