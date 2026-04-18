@@ -142,6 +142,15 @@ A infinity algebra and move from discarding associativity fixing to accepting de
 
 <img width="1326" height="394" alt="Screenshot 2026-04-13 at 4 41 29 PM" src="https://github.com/user-attachments/assets/35ad174b-7580-4ebf-bbbf-95e697ad7a20" />
 
+<img width="600" height="400" alt="perturbed_dynamics" src="https://github.com/user-attachments/assets/b9ac1367-0370-4578-9991-cc39cb64d660" />
+
+
+
+https://github.com/user-attachments/assets/42dbdf28-fa7d-4222-834c-9c3082cd76da
+
+
+
+
 
 
 
