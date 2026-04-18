@@ -1,4 +1,7 @@
 using LinearAlgebra, SparseArrays
+using WriteVTK
+using WriteVTK.VTKCellTypes: VTK_LINE
+using DataFrames
 
 println("=== Curved A∞ Hochschild HH² + m₄ Obstruction ===")
 NODES = "./node_regions_clean.csv"
@@ -2038,19 +2041,21 @@ function add_path_scores!(node_score, node_regions, scored_paths)
     end
 end
 
-using WriteVTK
+
 
 function write_vtk_fast(nodes_df, edges_df, node_score, filename; 
                         node_cluster=nothing, node_motif_score=nothing)
     
     # 1. Extract coordinates into a 3xN matrix (Required by WriteVTK)
     # Assuming nodes_df has columns x, y, z
-    points = hcat(nodes_df.x, nodes_df.y, nodes_df.z)'
+    points = hcat(nodes_df.pos_x, nodes_df.pos_y, nodes_df.pos_z)'
     
     # 2. Create the grid (UnstructuredGrid for nodes and edges)
     # Map edges to VTK_LINE cells
-    cells = [MeshCell(VTKCellTypes.VTK_LINE, [e.from_idx, e.to_idx]) for e in eachrow(edges_df)]
-    
+    cells = [
+        MeshCell(VTK_LINE, [edges_df.node1id[i] - 1, edges_df.node2id[i] - 1]) 
+        for i in 1:nrow(edges_df)
+    ]    
     # 3. Initialize the VTK file (This uses binary XML by default)
     vtk_grid(filename, points, cells) do vtk
         
@@ -2955,8 +2960,6 @@ function write_vtk_enhanced(nodes_df, edges_df, node_score, filename;
     end
 end
 
-using WriteVTK
-
 function write_vtk_fast(nodes_df, edges_df, node_score, filename; 
                         node_cluster=nothing, node_motif_score=nothing)
     
@@ -2987,10 +2990,8 @@ function write_vtk_fast(nodes_df, edges_df, node_score, filename;
     end
 end
 
-using WriteVTK
-using DataFrames
 
-using WriteVTK
+
 
 function write_vtk_enhanced_fast(nodes_df, edges_df, node_score, filename; 
     stalk_data=nothing, node_regions=nothing)
@@ -3034,12 +3035,32 @@ end
 
 # Optimized state-to-score for 3.5M nodes
 function fast_state_to_scores(state, nodes_df, node_regions)
-    # Vectorized approach: map the state dict to a float array directly
-    # Pre-calculate region_to_score to avoid repeated dict lookups
-    region_val_map = Dict(reg => get(state, Symbol("e_$reg"), 0.0) for reg in region_names)
+    # 1. Define region names locally to ensure the function is self-contained
+    # Adjust this list to match your A-infinity basis exactly
+    local_region_names = [:sAMY, :HPF, :BLA, :CA1sp, :HY, :LA]
     
-    # Assuming nodes_df has a 'region' column already
-    return [get(region_val_map, get(node_regions, id, :none), 0.0) for id in nodes_df.id]
+    # 2. Map the state dict to a float array
+    region_val_map = Dict(reg => get(state, Symbol("e_$reg"), 0.0) for reg in local_region_names)
+    
+    # 3. Pre-allocate the scores array (much faster for 3.5M nodes)
+    n_nodes = nrow(nodes_df)
+    scores = zeros(Float64, n_nodes)
+    
+    # 4. Use a standard for-loop (easier to debug and memory efficient)
+    for i in 1:n_nodes
+        # Use nodes_df.id[i] to avoid triggering column-searches
+        node_id = nodes_df.id[i]
+        
+        # Get the region associated with this node ID
+        # Note: if node_regions[id] returns a list, we take the first element
+        if haskey(node_regions, node_id)
+            reg_raw = node_regions[node_id]
+            reg_sym = Symbol(isa(reg_raw, Vector) ? reg_raw[1] : reg_raw)
+            scores[i] = get(region_val_map, reg_sym, 0.0)
+        end
+    end
+    
+    return scores
 end
 
 # Add the 'Residue' to the map
@@ -3055,31 +3076,38 @@ end
 # ============================================================
 # 5. Time evolution and perturbation simulation
 # ============================================================
+using WriteVTK   # make sure you have added WriteVTK.jl
+
 println("\n--- Simulating time evolution using m₂ ---")
 
-# Helper: convert a state (Dict{Symbol,Float64}) to node scores for VTK
-function state_to_node_scores(state, node_regions)
-    # state is a dictionary mapping basis elements to coefficients
-    # We extract the coefficient of each idempotent e_Region
-    region_scores = Dict{String, Float64}()
+# ------------------------------------------------------------
+# Helper: convert state (basis coefficients) to node scores (per node)
+# ------------------------------------------------------------
+function state_to_node_scores(state::Dict{Symbol,Float64},
+    node_regions::Dict{Int,Vector{String}})
+    max_id = maximum(keys(node_regions))
+    node_scores = zeros(Float64, max_id + 1)   # allocate space for 0..max_id
     for (nid, regs) in node_regions
+        idx = nid + 1   # convert 0‑based to 1‑based
         total = 0.0
         for r in regs
             e_sym = Symbol("e_$r")
             total += get(state, e_sym, 0.0)
         end
-        region_scores[nid] = total
+        node_scores[idx] = total
     end
-    return region_scores
+    return node_scores
 end
 
-# Define the map: x(t+1) = m₂(x(t), x(t))   (quadratic)
-# You can later add m₃, m₄, etc.
-function dynamical_map(state, mult)
-    new_state = Dict{Symbol, Float64}()
+# ------------------------------------------------------------
+# Dynamical map: x(t+1) = m₂(x(t), x(t))   (quadratic)
+# ------------------------------------------------------------
+function dynamical_map(state::Dict{Symbol,Float64}, 
+                       mult::Function)::Dict{Symbol,Float64}
+    new_state = Dict{Symbol,Float64}()
     for (a, va) in state
         for (b, vb) in state
-            prod = mult(a, b)
+            prod = mult(a, b)   # returns Dict{Symbol,Float64}
             for (c, vc) in prod
                 new_state[c] = get(new_state, c, 0.0) + va * vb * vc
             end
@@ -3088,26 +3116,33 @@ function dynamical_map(state, mult)
     return new_state
 end
 
-# Normalize state to prevent explosion (optional)
-function normalize_state!(state, target_norm=1.0)
-    norm = sqrt(sum(v^2 for v in values(state)))
-    if norm > 0
-        scale = target_norm / norm
+# ------------------------------------------------------------
+# Normalize state to avoid numerical explosion
+# ------------------------------------------------------------
+function normalize_state!(state::Dict{Symbol,Float64}, target_norm::Float64=1.0)
+    nrm = sqrt(sum(v^2 for v in values(state)))
+    if nrm > 0
+        scale = target_norm / nrm
         for k in keys(state)
             state[k] *= scale
         end
     end
 end
 
+# ------------------------------------------------------------
 # Simulation parameters
+# ------------------------------------------------------------
+region_names = ["sAMY", "HPF", "BLA", "CA1sp", "HY", "LA"]
 nt = 20                 # number of time steps
 perturb_time = 10       # step at which to perturb
-perturb_strength = 0.01
-initial_state = Dict{Symbol, Float64}(:e_sAMY => 1.0)   # start with sAMY active
+perturb_strength = 0.5
+initial_state = Dict{Symbol,Float64}(:e_sAMY => 1.0)
 
-# Baseline trajectory
+# ------------------------------------------------------------
+# Baseline trajectory (unperturbed)
+# ------------------------------------------------------------
 baseline_traj = []
-let state = copy(initial_state) # 'state' is now local to this block
+let state = copy(initial_state)
     for t in 1:nt
         push!(baseline_traj, copy(state))
         state = dynamical_map(state, mult_dict)
@@ -3115,7 +3150,9 @@ let state = copy(initial_state) # 'state' is now local to this block
     end
 end
 
-# Perturbed trajectory 
+# ------------------------------------------------------------
+# Perturbed trajectory (add e_LA at perturb_time)
+# ------------------------------------------------------------
 perturbed_traj = []
 let state = copy(initial_state)
     for t in 1:nt
@@ -3128,58 +3165,102 @@ let state = copy(initial_state)
     end
 end
 
-# Write VTK files for baseline (optional, one file per time step)
-# Write Baseline VTK files
-println("Writing Baseline VTU files...")
-for t in 1:nt
-    # 1. Transform the low-dimensional state (6 regions) 
-    #    to the high-dimensional node field (3.5M points)
-    current_node_scores = fast_state_to_scores(baseline_traj[t], nodes_df, node_regions)
-    
-    # 2. Immediately write to binary XML (.vtu)
-    # Ensure you use the .vtu extension to trigger the fast binary reader
-    write_vtk_enhanced_fast(nodes_df, edges_df, current_node_scores, "baseline_$(lpad(t,3,"0")).vtu")
-    
-    # 3. Memory management: The array current_node_scores is now eligible 
-    #    for garbage collection before the next loop starts.
-end
-
-# Write Perturbed VTK files
-println("Writing Perturbed VTU files...")
-for t in 1:nt
-    current_node_scores = fast_state_to_scores(perturbed_traj[t], nodes_df, node_regions)
-    write_vtk_enhanced_fast(nodes_df, edges_df, current_node_scores, "perturbed_$(lpad(t,3,"0")).vtu")
-end
-#= vtks are slow.**************************
-for t in 1:nt
-    node_scores = state_to_node_scores(baseline_traj[t], node_regions)
-    write_vtk_fast(nodes_df, edges_df, node_scores, "baseline_$(lpad(t,3,"0")).vtk")
-end
-
-# Write perturbed VTK files
-for t in 1:nt
-    node_scores = state_to_node_scores(perturbed_traj[t], node_regions)
-    write_vtk_fast(nodes_df, edges_df, node_scores, "perturbed_$(lpad(t,3,"0")).vtk")
-end
-************************ end of slow vtks =#
-
-# (Optional) Plot region activities over time using Plots.jl
+# ------------------------------------------------------------
+# Plot region activities over time (using Plots.jl)
+# ------------------------------------------------------------
 using Plots
-region_names = ["sAMY", "HPF", "BLA", "CA1sp", "HY", "LA"]
+
+# Baseline plot
 baseline_activities = Dict(r => Float64[] for r in region_names)
 for t in 1:nt
-     for r in region_names
-         e_sym = Symbol("e_$r")
-         push!(baseline_activities[r], get(baseline_traj[t], e_sym, 0.0))
-     end
+    for r in region_names
+        e_sym = Symbol("e_$r")
+        push!(baseline_activities[r], get(baseline_traj[t], e_sym, 0.0))
+    end
 end
-p = plot(xlabel="Time step", ylabel="Activity")
-for r in region_names
-     plot!(p, 1:nt, baseline_activities[r], label=r)
-end
-savefig(p, "baseline_dynamics.png")
+p_base = plot(1:nt, [baseline_activities[r] for r in region_names],
+              label=region_names, title="Baseline dynamics (no perturbation)",
+              xlabel="Time step", ylabel="Activity", legend=:outertopright)
+savefig(p_base, "baseline_dynamics.png")
 
-write_vtk_enhanced_fast(nodes_df, edges_df, node_score, "output_clusters.vtk")
+# Perturbed plot
+pert_activities = Dict(r => Float64[] for r in region_names)
+for t in 1:nt
+    for r in region_names
+        e_sym = Symbol("e_$r")
+        push!(pert_activities[r], get(perturbed_traj[t], e_sym, 0.0))
+    end
+end
+p_pert = plot(1:nt, [pert_activities[r] for r in region_names],
+              label=region_names, title="Perturbed dynamics (add LA at t=10)",
+              xlabel="Time step", ylabel="Activity", legend=:outertopright)
+vline!([perturb_time], linestyle=:dash, color=:black, label="Perturbation")
+savefig(p_pert, "perturbed_dynamics.png")
+
+println("Plots saved: baseline_dynamics.png, perturbed_dynamics.png")
+
+# ------------------------------------------------------------
+# Write VTU files for time series (using WriteVTK.jl)
+# ------------------------------------------------------------
+# Prepare points and cells once (for all time steps)
+points = hcat(nodes_df.pos_x, nodes_df.pos_y, nodes_df.pos_z)'
+cells = [MeshCell(VTK_LINE, [edges_df.node1id[i]-1, edges_df.node2id[i]-1]) 
+         for i in 1:nrow(edges_df)]
+num_nodes = nrow(nodes_df)
+println("Writing baseline VTU files...")
+for t in 1:nt
+    node_scores = state_to_node_scores(baseline_traj[t], node_regions)
+    # Ensure correct length
+    if length(node_scores) != nrow(nodes_df)
+        node_scores = node_scores[1:nrow(nodes_df)]
+    end
+    # Apply log10 transform for better visualisation (avoid huge numbers)
+    viewable = log10.(abs.(node_scores) .+ 1.0)
+    filename = "baseline_t$(lpad(t,3,"0"))"
+    vtk_grid(filename, points, cells) do vtk
+        vtk["activity"] = viewable
+    end
+end
+
+println("Writing perturbed VTU files...")
+for t in 1:nt
+    node_scores = state_to_node_scores(perturbed_traj[t], node_regions)
+    # Ensure correct length
+    if length(node_scores) != nrow(nodes_df)
+        node_scores = node_scores[1:nrow(nodes_df)]
+    end
+    viewable = log10.(abs.(node_scores) .+ 1.0)
+    filename = "perturbed_t$(lpad(t,3,"0"))"
+    vtk_grid(filename, points, cells) do vtk
+        vtk["activity"] = viewable
+    end
+end
+
+# ------------------------------------------------------------
+# Write static reference file with initial node scores (from region_scores)
+# ------------------------------------------------------------
+println("Writing static reference VTU file...")
+# node_score is a Dict{Int,Float64} from earlier (region_scores mapped to nodes)
+static_scores = zeros(Float64, nrow(nodes_df))
+# Defensive check for the static node_score dictionary
+if @isdefined(node_score) && node_score isa Dict
+    for (nid, val) in node_score
+        idx = nid + 1   # convert 0‑based to 1‑based
+        if 1 <= idx <= length(static_scores)
+            static_scores[idx] = val
+        end
+    end
+end
+# Apply log transform for visualisation
+static_viewable = log10.(abs.(static_scores) .+ 1.0)
+
+vtk_grid("static_brain_reference", points, cells) do vtk
+    vtk["region_score"] = static_viewable
+    vtk["degree"] = nodes_df.degree
+    # add any other node attributes you have
+end
+
+println("Time evolution simulation and VTK export completed.")
 
 # ----------------------------------------------------------------------------
 # Functions to compare stalks at all levels (m3, m4, m5, m6)
@@ -3258,7 +3339,7 @@ println("\n=== Full gluing defects (m3+m4+m5+m6) ===")
 for r1 in regions, r2 in regions
     r1 == r2 && continue
     inter = intersect(Set(stalk_data[r1][:basis]), Set(stalk_data[r2][:basis]))
-    defects = gluing_defect_full(stalk_data[r1], stalk_data[r2], inter)
+    local defects = gluing_defect_full(stalk_data[r1], stalk_data[r2], inter)
     println("$r1 ↔ $r2 : m3=$(defects.m3), m4=$(defects.m4), m5=$(defects.m5), m6=$(defects.m6), total=$(defects.total)")
 end
 
