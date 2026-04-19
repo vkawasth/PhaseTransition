@@ -29,7 +29,7 @@ is strictly forbidden. Violation of this restriction terminates the licence.
     Recommendation on Responsible Innovation. Any person or entity wishing to use this work must first obtain written 
     permission from the author and provide a legally binding commitment to non‑military use.
 
-
+See https://medium.com/@vinay.pdx/algebraic-dynamics-to-detect-trajectories-03ad654c67e2 for detailed write up.
 
 For full picture using 3 nodes 7 edges use deepseek_python_20260325_149c87.py program.
 
