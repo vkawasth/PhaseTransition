@@ -25,10 +25,9 @@ is strictly forbidden. Violation of this restriction terminates the licence.
         Simulating or optimising logistical movements in a conflict zone.
 
     This restriction is consistent with the principles of the Geneva Conventions (Protocol I, Article 36) on the review of 
-    new weapons, the UN Secretary‑General’s Call for a Ban on Lethal Autonomous Weapons (2021), and the OECD Recommendation 
-    on Responsible Innovation. Any person or entity wishing to use this work must first obtain written permission from the 
-    author and provide a legally binding 
-    commitment to non‑military use.
+    new weapons, the UN Secretary‑General’s Call for a Ban on Lethal Autonomous Weapons (2021), and the OECD 
+    Recommendation on Responsible Innovation. Any person or entity wishing to use this work must first obtain written 
+    permission from the author and provide a legally binding commitment to non‑military use.
 
 
 
