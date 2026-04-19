@@ -1,3 +1,27 @@
+Copyright (c) 2025 VINAY K AWASTHI
+
+Permission is hereby granted for non‑commercial, non‑military purposes only.  
+Any use of this software or its derivatives for military applications, including 
+but not limited to defence contracting, weapons systems, or combat logistics, 
+is strictly forbidden. Violation of this restriction terminates the licence.
+
+    Limitation of Use
+    This dissertation presents mathematical and computational models derived from a mouse connectome and drug‑induced consciousness changes. The primary aim is to improve medical and neuroscientific knowledge, particularly regarding anaesthesia, opioid effects, and recovery of consciousness.
+
+    Prohibition of Military Application
+    The author explicitly prohibits the use of any part of this work – including but not limited to the A∞‑algebraic framework, Toda flow control, stochastic aggregation methods, Morita class detection, and reverse Hironaka surgery – for military purposes. Such prohibited uses include:
+
+        Designing, testing, or operating command‑and‑control networks for armed forces.
+
+        Developing autonomous or semi‑autonomous weapons that rely on network coherence metrics.
+
+        Enhancing battlefield situational awareness or targeting systems.
+
+        Simulating or optimising logistical movements in a conflict zone.
+
+    This restriction is consistent with the principles of the Geneva Conventions (Protocol I, Article 36) on the review of new weapons, the UN Secretary‑General’s Call for a Ban on Lethal Autonomous Weapons (2021), and the OECD Recommendation on Responsible Innovation. Any person or entity wishing to use this work must first obtain written permission from the author and provide a legally binding commitment to non‑military use.
+
+
 For full picture using 3 nodes 7 edges use deepseek_python_20260325_149c87.py program.
 
 This reporsitory is about studying algebraic geometry through phase change, involving topological transformations. 
