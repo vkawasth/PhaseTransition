@@ -22,6 +22,7 @@ is strictly forbidden. Violation of this restriction terminates the licence.
     This restriction is consistent with the principles of the Geneva Conventions (Protocol I, Article 36) on the review of new weapons, the UN Secretary‑General’s Call for a Ban on Lethal Autonomous Weapons (2021), and the OECD Recommendation on Responsible Innovation. Any person or entity wishing to use this work must first obtain written permission from the author and provide a legally binding commitment to non‑military use.
 
 
+
 For full picture using 3 nodes 7 edges use deepseek_python_20260325_149c87.py program.
 
 This reporsitory is about studying algebraic geometry through phase change, involving topological transformations. 
