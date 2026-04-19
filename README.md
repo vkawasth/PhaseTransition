@@ -9,7 +9,8 @@ is strictly forbidden. Violation of this restriction terminates the licence.
     This dissertation presents mathematical and computational models derived from a mouse connectome and drug‑induced consciousness changes. The primary aim is to improve medical and neuroscientific knowledge, particularly regarding anaesthesia, opioid effects, and recovery of consciousness.
 
     Prohibition of Military Application
-    The author explicitly prohibits the use of any part of this work – including but not limited to the A∞‑algebraic framework, Toda flow control, stochastic aggregation methods, Morita class detection, and reverse Hironaka surgery – for military purposes. Such prohibited uses include:
+    The author explicitly prohibits the use of any part of this work – including but not limited to the A∞‑algebraic framework, Toda flow control,
+    stochastic aggregation methods, Morita class detection, and reverse Hironaka surgery – for military purposes. Such prohibited uses include:
 
         Designing, testing, or operating command‑and‑control networks for armed forces.
 
@@ -19,7 +20,10 @@ is strictly forbidden. Violation of this restriction terminates the licence.
 
         Simulating or optimising logistical movements in a conflict zone.
 
-    This restriction is consistent with the principles of the Geneva Conventions (Protocol I, Article 36) on the review of new weapons, the UN Secretary‑General’s Call for a Ban on Lethal Autonomous Weapons (2021), and the OECD Recommendation on Responsible Innovation. Any person or entity wishing to use this work must first obtain written permission from the author and provide a legally binding commitment to non‑military use.
+    This restriction is consistent with the principles of the Geneva Conventions (Protocol I, Article 36) on the review of new weapons, 
+    the UN Secretary‑General’s Call for a Ban on Lethal Autonomous Weapons (2021), and the OECD Recommendation on Responsible Innovation. 
+    Any person or entity wishing to use this work must first obtain written permission from the author and provide a legally binding 
+    commitment to non‑military use.
 
 
 
