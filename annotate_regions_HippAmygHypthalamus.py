@@ -14,6 +14,12 @@ assert len(nodes) == len(onehot_map), "Node file and one-hot map row count misma
 
 # 4. Define target regions
 target_regions = {"CA1sp", "HPF", "BLA", "sAMY", "LA", "HY"}
+#target_regions = {"CA1sp"}
+#target_regions = {"BLA"}
+#target_regions = {"HY"}
+#target_regions = {"PAL"}
+#target_regions = {"PAL", "LSX"}
+#target_regions = {"CA1sp", "HPF", "BLA", "sAMY", "LA", "HY", "PAL", "LSX"}
 
 # 5. Build a boolean mask for rows that have any of the target regions
 #    The one-hot columns are named e.g., "Region_Acronym_CA1"
@@ -33,8 +39,8 @@ print(matching_cols)
 
 
 # 6. Filter both dataframes
-filtered_nodes = nodes[mask]
-filtered_onehot = onehot_map[mask]
+filtered_nodes = nodes[mask].copy()
+filtered_onehot = onehot_map[mask].copy()
 
 # 7. Create 'regions' column for filtered rows (optional, but keeps functionality)
 region_cols = filtered_onehot.columns.tolist()
@@ -45,7 +51,13 @@ def get_regions(row):
 filtered_nodes["regions"] = filtered_onehot.apply(get_regions, axis=1)
 
 # 8. Save final CSV (only nodes belonging to target regions)
-filtered_nodes.to_csv("node_regions_cleanHippAmygHypthalamus_HPF_sAMY.csv", sep=";", index=False)
+#filtered_nodes.to_csv("node_regions_cleanHippAmygHypthalamus_HPF_sAMY.csv", sep=";", index=False)
+#filtered_nodes.to_csv("node_regions_cleanHippAmygHypthalamus_CA1.csv", sep=";", index=False)
+#filtered_nodes.to_csv("node_regions_cleanHippAmygHypthalamus_BLA.csv", sep=";", index=False)
+#filtered_nodes.to_csv("node_regions_cleanHippAmygHypthalamus_HY.csv", sep=";", index=False)
+#filtered_nodes.to_csv("node_regions_cleanHippAmygHypthalamus_PAL.csv", sep=";", index=False)
+#filtered_nodes.to_csv("node_regions_cleanHippAmygHypthalamus_ALLWITH_PAL_LSX.csv", sep=";", index=False)
+filtered_nodes.to_csv("node_regions_cleanHippAmygHypthalamus.csv", sep=";", index=False)
 
 print(f"Done! Saved {len(filtered_nodes)} nodes (filtered to target regions).")
 
