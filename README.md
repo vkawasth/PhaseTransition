@@ -181,6 +181,52 @@ A infinity algebra and move from discarding associativity fixing to accepting de
 
 https://github.com/user-attachments/assets/42dbdf28-fa7d-4222-834c-9c3082cd76da
 
+True Brain Dynamics with Opiate Norcain and HH2 obstructions.
+
+HH@ using Curved A infinity Algebra -- as Opiate and Norcain load Quivers with 2 toric interaction dynamics.
+
+https://github.com/user-attachments/assets/8f4aeac7-8855-4e11-8c1e-85014f285a53
+
+Opiate flowing 6 regions : 
+
+https://github.com/user-attachments/assets/46eb4ada-8595-43c4-8ff3-b9a6cbd9d93c
+
+NOrcain coming to revive : 
+
+https://github.com/user-attachments/assets/a94696e7-ecc2-456f-a9c0-8ad4a58ef14b
+
+Finer Real time rees resolutions.
+
+<img width="2224" height="1195" alt="Screenshot 2026-04-19 at 10 11 11 PM" src="https://github.com/user-attachments/assets/2a02f7b4-1b54-4d62-b59b-c1f7a1a80aee" />
+
+<img width="1194" height="1028" alt="Screenshot 2026-04-19 at 10 12 28 PM" src="https://github.com/user-attachments/assets/11dbe258-3fd8-443a-be20-85cfea674313" />
+
+<img width="370" height="323" alt="Screenshot 2026-04-19 at 10 15 19 PM" src="https://github.com/user-attachments/assets/800b20d2-25a8-41bb-b097-149399efe716" />
+
+<img width="722" height="990" alt="Screenshot 2026-04-19 at 10 15 36 PM" src="https://github.com/user-attachments/assets/e6fac0ff-f5c4-4402-a629-c4326f47c1f6" />
+
+View From Grassmannians.
+
+<img width="711" height="330" alt="Screenshot 2026-04-19 at 10 16 04 PM" src="https://github.com/user-attachments/assets/6bac442a-d5a6-40d9-ae82-6b19a13df345" />
+
+BALBc Brain responding to Opiate Norcain dynamics where HH2 is comuted using curved A infinity algebras showing perfect correlation as interactions proceeds.
+We also model rebound dynamics (thin vessels towrds the edge opf the brain have very loopy structures that absorb drug slowly abd responds with a rebound effect.
+
+<img width="3284" height="4566" alt="comprehensive_21panel_dashboard" src="https://github.com/user-attachments/assets/cff61010-93bc-441f-b9e7-91c4b69a666b" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
