@@ -1,0 +1,934 @@
+=== Curved A∞ Hochschild HH² + m₄ Obstruction ===
+Number of explicit products: 56
+Basis size: 52
+Computing m3 (associator)...
+Nonzero m3 entries: 356
+|C²| = 384
+|C³| = 2832
+Building d1...
+Building d2 (curved)...
+d2 built, size = (2832, 384)
+Computing HH²...
+dim ker(d2) = 299
+rank(d1) = 39
+===================================
+Curved HH^2 dimension = 260
+===================================
+
+Computing full m4 obstruction (sparse)...
+|C⁴| = 20880
+Non-zero full m4 obstruction entries: 149
+Maximum Euclidean norm of obstruction: 359.91579723358154
+Example largest obstruction: (f_PAL_sAMY, f_sAMY_BLA, f_BLA_LA, f_LA_BLA) -> Dict(:f_PAL_BLA => -359.91579723358154)
+Number of non-zero m4 structure constants (to cancel obstruction): 218
+Number of non-zero m4 obstructions (quadruples): 2136
+
+--- Region scores (α=1, β=2) ---
+sAMY : 2.9439800812716034e10
+PAL : 2.549248180540133e10
+BLA : 2.49899517725947e10
+HPF : 7.578028972394731e9
+LA : 7.570180490423416e9
+HY : 7.349987087200189e9
+CA1sp : 2.326732267870482e9
+
+--- Top 3 paths per region ---
+sAMY:
+   (:f_PAL_sAMY, :f_sAMY_BLA, :e_BLA) : 3.1165653359096637e9
+   (:e_PAL, :f_PAL_sAMY, :f_sAMY_BLA) : 3.1165653359096637e9
+   (:f_PAL_sAMY, :f_sAMY_HPF, :f_HPF_BLA) : 3.1165653349096637e9
+PAL:
+   (:f_PAL_sAMY, :f_sAMY_BLA, :e_BLA) : 3.1165653359096637e9
+   (:e_PAL, :f_PAL_sAMY, :f_sAMY_BLA) : 3.1165653359096637e9
+   (:f_PAL_sAMY, :f_sAMY_HPF, :f_HPF_BLA) : 3.1165653349096637e9
+BLA:
+   (:f_PAL_sAMY, :f_sAMY_BLA, :e_BLA) : 3.1165653359096637e9
+   (:e_PAL, :f_PAL_sAMY, :f_sAMY_BLA) : 3.1165653359096637e9
+   (:f_PAL_sAMY, :f_sAMY_HPF, :f_HPF_BLA) : 3.1165653349096637e9
+HPF:
+   (:f_PAL_sAMY, :f_sAMY_HPF, :f_HPF_BLA) : 3.1165653349096637e9
+   (:e_sAMY, :f_sAMY_HPF, :f_HPF_CA1sp) : 7.242162284352616e8
+   (:f_sAMY_HPF, :f_HPF_CA1sp, :e_CA1sp) : 7.242162284352616e8
+LA:
+   (:f_PAL_sAMY, :f_sAMY_LA, :f_LA_BLA) : 3.1165653349096637e9
+   (:f_BLA_LA, :f_LA_sAMY, :f_sAMY_PAL) : 1.4823078639205763e9
+   (:f_PAL_sAMY, :f_sAMY_LA, :e_LA) : 3.8615974507654345e8
+HY:
+   (:f_PAL_HY, :f_HY_sAMY, :f_sAMY_BLA) : 3.1165653349096637e9
+   (:f_BLA_sAMY, :f_sAMY_HY, :f_HY_PAL) : 1.4823078639205763e9
+   (:f_PAL_HY, :f_HY_sAMY, :f_sAMY_LA) : 3.8615974407654345e8
+CA1sp:
+   (:e_sAMY, :f_sAMY_HPF, :f_HPF_CA1sp) : 7.242162284352616e8
+   (:f_sAMY_HPF, :f_HPF_CA1sp, :e_CA1sp) : 7.242162284352616e8
+   (:f_HPF_CA1sp, :f_CA1sp_sAMY, :f_sAMY_PAL) : 1.4474190661248878e8
+
+--- Top 4 paths per region ---
+sAMY:
+   (:f_PAL_sAMY, :f_sAMY_BLA, :e_BLA) : 3.1165653359096637e9
+   (:e_PAL, :f_PAL_sAMY, :f_sAMY_BLA) : 3.1165653359096637e9
+   (:f_PAL_sAMY, :f_sAMY_HPF, :f_HPF_BLA) : 3.1165653349096637e9
+   (:f_PAL_HY, :f_HY_sAMY, :f_sAMY_BLA) : 3.1165653349096637e9
+PAL:
+   (:f_PAL_sAMY, :f_sAMY_BLA, :e_BLA) : 3.1165653359096637e9
+   (:e_PAL, :f_PAL_sAMY, :f_sAMY_BLA) : 3.1165653359096637e9
+   (:f_PAL_sAMY, :f_sAMY_HPF, :f_HPF_BLA) : 3.1165653349096637e9
+   (:f_PAL_HY, :f_HY_sAMY, :f_sAMY_BLA) : 3.1165653349096637e9
+BLA:
+   (:f_PAL_sAMY, :f_sAMY_BLA, :e_BLA) : 3.1165653359096637e9
+   (:e_PAL, :f_PAL_sAMY, :f_sAMY_BLA) : 3.1165653359096637e9
+   (:f_PAL_sAMY, :f_sAMY_HPF, :f_HPF_BLA) : 3.1165653349096637e9
+   (:f_PAL_HY, :f_HY_sAMY, :f_sAMY_BLA) : 3.1165653349096637e9
+HPF:
+   (:f_PAL_sAMY, :f_sAMY_HPF, :f_HPF_BLA) : 3.1165653349096637e9
+   (:e_sAMY, :f_sAMY_HPF, :f_HPF_CA1sp) : 7.242162284352616e8
+   (:f_sAMY_HPF, :f_HPF_CA1sp, :e_CA1sp) : 7.242162284352616e8
+   (:e_PAL, :f_PAL_sAMY, :f_sAMY_HPF) : 2.438205521305996e8
+LA:
+   (:f_PAL_sAMY, :f_sAMY_LA, :f_LA_BLA) : 3.1165653349096637e9
+   (:f_BLA_LA, :f_LA_sAMY, :f_sAMY_PAL) : 1.4823078639205763e9
+   (:f_PAL_sAMY, :f_sAMY_LA, :e_LA) : 3.8615974507654345e8
+   (:e_PAL, :f_PAL_sAMY, :f_sAMY_LA) : 3.8615974507654345e8
+HY:
+   (:f_PAL_HY, :f_HY_sAMY, :f_sAMY_BLA) : 3.1165653349096637e9
+   (:f_BLA_sAMY, :f_sAMY_HY, :f_HY_PAL) : 1.4823078639205763e9
+   (:f_PAL_HY, :f_HY_sAMY, :f_sAMY_LA) : 3.8615974407654345e8
+   (:f_PAL_HY, :f_HY_sAMY, :f_sAMY_HPF) : 2.438205511305996e8
+CA1sp:
+   (:e_sAMY, :f_sAMY_HPF, :f_HPF_CA1sp) : 7.242162284352616e8
+   (:f_sAMY_HPF, :f_HPF_CA1sp, :e_CA1sp) : 7.242162284352616e8
+   (:f_HPF_CA1sp, :f_CA1sp_sAMY, :f_sAMY_PAL) : 1.4474190661248878e8
+   (:f_CA1sp_sAMY, :f_sAMY_HPF, :f_HPF_BLA) : 1.35820747553798e8
+
+--- Top 5 m₄ obstructions (by weight) ---
+(:f_PAL_sAMY, :f_sAMY_BLA, :f_BLA_LA, :f_LA_BLA) : 719.8315944671631
+   -> Dict(:f_PAL_BLA => -359.91579723358154)
+(:f_HPF_CA1sp, :f_CA1sp_HPF, :f_HPF_sAMY, :f_sAMY_PAL) : 582.3107032775879
+   -> Dict(:f_HPF_PAL => 291.15535163879395)
+(:f_BLA_LA, :f_LA_BLA, :f_BLA_sAMY, :f_sAMY_PAL) : 343.5256938934326
+   -> Dict(:f_BLA_PAL => -171.7628469467163)
+(:f_PAL_HY, :f_HY_PAL, :f_PAL_sAMY, :f_sAMY_BLA) : 221.5337677001953
+   -> Dict(:f_PAL_BLA => 110.76688385009766)
+(:f_BLA_LA, :f_LA_BLA, :f_BLA_sAMY, :f_sAMY_HPF) : 116.4754763841629
+   -> Dict(:f_BLA_HPF => -58.23773819208145)
+Obstruction for (:f_BLA_LA, :f_LA_BLA, :f_BLA_sAMY, :f_sAMY_HPF): Dict(:f_BLA_HPF => -58.23773819208145)
+
+--- Region scores from m₄ only ---
+sAMY : 2821.1094950651545
+PAL : 2424.2053093738496
+BLA : 1918.4150964397097
+LA : 1621.1124101241514
+HPF : 1053.267519752516
+CA1sp : 833.8501529047722
+HY : 611.9084443427264
+
+--- Local stalk for sAMY (depth=2) ---
+Size: 52
+First 10 elements: [:f_PAL_LA, :e_BLA, :f_CA1sp_sAMY, :f_sAMY_CA1sp, :f_HY_HY, :e_sAMY, :f_HY_sAMY, :f_LA_HPF, :f_LA_HY, :f_BLA_sAMY]
+Restricted m3 entries: 356
+Restricted m4 entries: 2136
+Local m5 entries (to cancel obstruction): 218
+
+--- Top 10 path scores within sAMY stalk ---
+(:e_PAL, :f_PAL_sAMY, :f_sAMY_BLA) : 3.1165653359096637e9
+(:f_PAL_sAMY, :f_sAMY_BLA, :e_BLA) : 3.1165653359096637e9
+(:f_PAL_sAMY, :f_sAMY_LA, :f_LA_BLA) : 3.1165653349096637e9
+(:f_PAL_sAMY, :f_sAMY_HPF, :f_HPF_BLA) : 3.1165653349096637e9
+(:f_PAL_HY, :f_HY_sAMY, :f_sAMY_BLA) : 3.1165653349096637e9
+(:f_BLA_sAMY, :f_sAMY_PAL, :e_PAL) : 1.4823078649205763e9
+(:e_BLA, :f_BLA_sAMY, :f_sAMY_PAL) : 1.4823078649205763e9
+(:f_BLA_sAMY, :f_sAMY_HY, :f_HY_PAL) : 1.4823078639205763e9
+(:f_BLA_LA, :f_LA_sAMY, :f_sAMY_PAL) : 1.4823078639205763e9
+(:f_sAMY_HPF, :f_HPF_CA1sp, :e_CA1sp) : 7.242162284352616e8
+Converted m3 to element form: 356 entries
+Checking A∞ identity at level 4 (consistent with m4_obstruction_full)...
+Max violation (δm₃ + m₄_corrected): 0.0
+Number of violating quadruples: 0
+
+Verifying that m4_corrected cancels the obstruction...
+Max residual after adding m4_corrected: 0.0
+✅ m4_corrected successfully cancels the obstruction (residual < 1.0e-12).
+
+Building stalk for sAMY
+Stalk size: 52
+m3 size: 356
+m4 size: 2136
+
+Building stalk for HPF
+Stalk size: 52
+m3 size: 356
+m4 size: 2136
+
+Building stalk for BLA
+Stalk size: 52
+m3 size: 356
+m4 size: 2136
+
+Building stalk for CA1sp
+Stalk size: 52
+m3 size: 356
+m4 size: 2136
+
+Building stalk for HY
+Stalk size: 52
+m3 size: 356
+m4 size: 2136
+
+Building stalk for LA
+Stalk size: 52
+m3 size: 356
+m4 size: 2136
+
+Building stalk for PAL
+Stalk size: 52
+m3 size: 356
+m4 size: 2136
+Number of non‑zero m5 entries: 4161
+
+--- Sample m5 entries (sAMY stalk) ---
+(:e_BLA, :f_BLA_sAMY, :f_sAMY_PAL, :f_PAL_HY, :f_HY_PAL) => [:f_BLA_PAL => -3.615505567385903e12]
+(:f_CA1sp_PAL, :e_PAL, :f_PAL_sAMY, :f_sAMY_HY, :f_HY_PAL) => [:f_CA1sp_PAL => -5205.33905724803]
+(:e_HPF, :e_HPF, :f_HPF_BLA, :f_BLA_sAMY, :f_sAMY_LA) => [:f_HPF_LA => 1.427181020439121e11]
+(:f_HY_PAL, :e_PAL, :f_PAL_HY, :f_HY_sAMY, :f_sAMY_PAL) => [:f_HY_PAL => 1.5198289903804163e7]
+(:f_HPF_BLA, :f_BLA_sAMY, :e_sAMY, :f_sAMY_HPF, :f_HPF_HY) => [:f_HPF_HY => 5839.548115620727]
+Intersection size: 52
+m3 mismatches: 0
+Truncating C5 from 153936 to 50000
+Number of non‑zero m5 entries: 2364
+Nonzero m6 entries: 5415
+Max m6 obstruction: 2.8602134743857896e20
+
+--- Processing region: sAMY ---
+Stalk basis size: 52
+m3 entries: 356, m4 entries: 2136
+Truncating C5 from 153936 to 20000
+C5 size: 20000, C6 size: 147455
+Nonzero m6 entries: 2969
+Max m6 obstruction: 6.353597670766308e19
+m5 entries: 1409, m6 entries: 2969
+Checking A∞ identity at level 6...
+Max violation (δm₅ + m₄∘m₃ + m₃∘m₄ + m₆): 0.0
+Number of violating 6‑tuples: 0 out of 147455
+✅ A∞ identity at level 6 is satisfied (residual < 1.0e-6).
+Top 5 paths in sAMY stalk:
+   SubString{String}["CA1sp", "sAMY", "HPF", "sAMY", "HPF", "sAMY"] : total=1.906079328645877e20, avg=3.1767988810764616e19
+   SubString{String}["HY", "sAMY", "PAL", "sAMY", "PAL", "sAMY"] : total=9.686987383466315e19, avg=1.6144978972443859e19
+   SubString{String}["CA1sp", "sAMY", "HPF", "CA1sp", "HPF", "sAMY"] : total=9.347179320638009e19, avg=1.5578632201063348e19
+   SubString{String}["CA1sp", "sAMY", "HPF", "sAMY", "HPF", "sAMY"] : total=9.346616887011058e19, avg=1.5577694811685095e19
+   SubString{String}["HY", "sAMY", "PAL", "sAMY", "HPF", "sAMY"] : total=8.342955160221214e19, avg=1.3904925267035357e19
+
+--- Processing region: HPF ---
+Stalk basis size: 52
+m3 entries: 356, m4 entries: 2136
+Truncating C5 from 153936 to 20000
+C5 size: 20000, C6 size: 147455
+Nonzero m6 entries: 2969
+Max m6 obstruction: 6.353597670766308e19
+m5 entries: 1409, m6 entries: 2969
+Checking A∞ identity at level 6...
+Max violation (δm₅ + m₄∘m₃ + m₃∘m₄ + m₆): 0.0
+Number of violating 6‑tuples: 0 out of 147455
+✅ A∞ identity at level 6 is satisfied (residual < 1.0e-6).
+Top 5 paths in HPF stalk:
+   SubString{String}["CA1sp", "sAMY", "HPF", "sAMY", "HPF", "sAMY"] : total=1.906079328645877e20, avg=3.1767988810764616e19
+   SubString{String}["HY", "sAMY", "PAL", "sAMY", "PAL", "sAMY"] : total=9.686987383466315e19, avg=1.6144978972443859e19
+   SubString{String}["CA1sp", "sAMY", "HPF", "CA1sp", "HPF", "sAMY"] : total=9.347179320638009e19, avg=1.5578632201063348e19
+   SubString{String}["CA1sp", "sAMY", "HPF", "sAMY", "HPF", "sAMY"] : total=9.346616887011058e19, avg=1.5577694811685095e19
+   SubString{String}["HY", "sAMY", "PAL", "sAMY", "HPF", "sAMY"] : total=8.342955160221214e19, avg=1.3904925267035357e19
+
+--- Processing region: BLA ---
+Stalk basis size: 52
+m3 entries: 356, m4 entries: 2136
+Truncating C5 from 153936 to 20000
+C5 size: 20000, C6 size: 147455
+Nonzero m6 entries: 2969
+Max m6 obstruction: 6.353597670766308e19
+m5 entries: 1409, m6 entries: 2969
+Checking A∞ identity at level 6...
+Max violation (δm₅ + m₄∘m₃ + m₃∘m₄ + m₆): 0.0
+Number of violating 6‑tuples: 0 out of 147455
+✅ A∞ identity at level 6 is satisfied (residual < 1.0e-6).
+Top 5 paths in BLA stalk:
+   SubString{String}["CA1sp", "sAMY", "HPF", "sAMY", "HPF", "sAMY"] : total=1.906079328645877e20, avg=3.1767988810764616e19
+   SubString{String}["HY", "sAMY", "PAL", "sAMY", "PAL", "sAMY"] : total=9.686987383466315e19, avg=1.6144978972443859e19
+   SubString{String}["CA1sp", "sAMY", "HPF", "CA1sp", "HPF", "sAMY"] : total=9.347179320638009e19, avg=1.5578632201063348e19
+   SubString{String}["CA1sp", "sAMY", "HPF", "sAMY", "HPF", "sAMY"] : total=9.346616887011058e19, avg=1.5577694811685095e19
+   SubString{String}["HY", "sAMY", "PAL", "sAMY", "HPF", "sAMY"] : total=8.342955160221214e19, avg=1.3904925267035357e19
+
+--- Processing region: CA1sp ---
+Stalk basis size: 52
+m3 entries: 356, m4 entries: 2136
+Truncating C5 from 153936 to 20000
+C5 size: 20000, C6 size: 147455
+Nonzero m6 entries: 2969
+Max m6 obstruction: 6.353597670766308e19
+m5 entries: 1409, m6 entries: 2969
+Checking A∞ identity at level 6...
+Max violation (δm₅ + m₄∘m₃ + m₃∘m₄ + m₆): 0.0
+Number of violating 6‑tuples: 0 out of 147455
+✅ A∞ identity at level 6 is satisfied (residual < 1.0e-6).
+Top 5 paths in CA1sp stalk:
+   SubString{String}["CA1sp", "sAMY", "HPF", "sAMY", "HPF", "sAMY"] : total=1.906079328645877e20, avg=3.1767988810764616e19
+   SubString{String}["HY", "sAMY", "PAL", "sAMY", "PAL", "sAMY"] : total=9.686987383466315e19, avg=1.6144978972443859e19
+   SubString{String}["CA1sp", "sAMY", "HPF", "CA1sp", "HPF", "sAMY"] : total=9.347179320638009e19, avg=1.5578632201063348e19
+   SubString{String}["CA1sp", "sAMY", "HPF", "sAMY", "HPF", "sAMY"] : total=9.346616887011058e19, avg=1.5577694811685095e19
+   SubString{String}["HY", "sAMY", "PAL", "sAMY", "HPF", "sAMY"] : total=8.342955160221214e19, avg=1.3904925267035357e19
+
+--- Processing region: HY ---
+Stalk basis size: 52
+m3 entries: 356, m4 entries: 2136
+Truncating C5 from 153936 to 20000
+C5 size: 20000, C6 size: 147455
+Nonzero m6 entries: 2969
+Max m6 obstruction: 6.353597670766308e19
+m5 entries: 1409, m6 entries: 2969
+Checking A∞ identity at level 6...
+Max violation (δm₅ + m₄∘m₃ + m₃∘m₄ + m₆): 0.0
+Number of violating 6‑tuples: 0 out of 147455
+✅ A∞ identity at level 6 is satisfied (residual < 1.0e-6).
+Top 5 paths in HY stalk:
+   SubString{String}["CA1sp", "sAMY", "HPF", "sAMY", "HPF", "sAMY"] : total=1.906079328645877e20, avg=3.1767988810764616e19
+   SubString{String}["HY", "sAMY", "PAL", "sAMY", "PAL", "sAMY"] : total=9.686987383466315e19, avg=1.6144978972443859e19
+   SubString{String}["CA1sp", "sAMY", "HPF", "CA1sp", "HPF", "sAMY"] : total=9.347179320638009e19, avg=1.5578632201063348e19
+   SubString{String}["CA1sp", "sAMY", "HPF", "sAMY", "HPF", "sAMY"] : total=9.346616887011058e19, avg=1.5577694811685095e19
+   SubString{String}["HY", "sAMY", "PAL", "sAMY", "HPF", "sAMY"] : total=8.342955160221214e19, avg=1.3904925267035357e19
+
+--- Processing region: LA ---
+Stalk basis size: 52
+m3 entries: 356, m4 entries: 2136
+Truncating C5 from 153936 to 20000
+C5 size: 20000, C6 size: 147455
+Nonzero m6 entries: 2969
+Max m6 obstruction: 6.353597670766308e19
+m5 entries: 1409, m6 entries: 2969
+Checking A∞ identity at level 6...
+Max violation (δm₅ + m₄∘m₃ + m₃∘m₄ + m₆): 0.0
+Number of violating 6‑tuples: 0 out of 147455
+✅ A∞ identity at level 6 is satisfied (residual < 1.0e-6).
+Top 5 paths in LA stalk:
+   SubString{String}["CA1sp", "sAMY", "HPF", "sAMY", "HPF", "sAMY"] : total=1.906079328645877e20, avg=3.1767988810764616e19
+   SubString{String}["HY", "sAMY", "PAL", "sAMY", "PAL", "sAMY"] : total=9.686987383466315e19, avg=1.6144978972443859e19
+   SubString{String}["CA1sp", "sAMY", "HPF", "CA1sp", "HPF", "sAMY"] : total=9.347179320638009e19, avg=1.5578632201063348e19
+   SubString{String}["CA1sp", "sAMY", "HPF", "sAMY", "HPF", "sAMY"] : total=9.346616887011058e19, avg=1.5577694811685095e19
+   SubString{String}["HY", "sAMY", "PAL", "sAMY", "HPF", "sAMY"] : total=8.342955160221214e19, avg=1.3904925267035357e19
+
+--- Processing region: PAL ---
+Stalk basis size: 52
+m3 entries: 356, m4 entries: 2136
+Truncating C5 from 153936 to 20000
+C5 size: 20000, C6 size: 147455
+Nonzero m6 entries: 2969
+Max m6 obstruction: 6.353597670766308e19
+m5 entries: 1409, m6 entries: 2969
+Checking A∞ identity at level 6...
+Max violation (δm₅ + m₄∘m₃ + m₃∘m₄ + m₆): 0.0
+Number of violating 6‑tuples: 0 out of 147455
+✅ A∞ identity at level 6 is satisfied (residual < 1.0e-6).
+Top 5 paths in PAL stalk:
+   SubString{String}["CA1sp", "sAMY", "HPF", "sAMY", "HPF", "sAMY"] : total=1.906079328645877e20, avg=3.1767988810764616e19
+   SubString{String}["HY", "sAMY", "PAL", "sAMY", "PAL", "sAMY"] : total=9.686987383466315e19, avg=1.6144978972443859e19
+   SubString{String}["CA1sp", "sAMY", "HPF", "CA1sp", "HPF", "sAMY"] : total=9.347179320638009e19, avg=1.5578632201063348e19
+   SubString{String}["CA1sp", "sAMY", "HPF", "sAMY", "HPF", "sAMY"] : total=9.346616887011058e19, avg=1.5577694811685095e19
+   SubString{String}["HY", "sAMY", "PAL", "sAMY", "HPF", "sAMY"] : total=8.342955160221214e19, avg=1.3904925267035357e19
+Gluing defect PAL → CA1sp : 0.0
+Gluing defect PAL → LA : 0.0
+Gluing defect sAMY → HPF : 0.0
+Gluing defect BLA → HY : 0.0
+Gluing defect PAL → BLA : 0.0
+Gluing defect CA1sp → HY : 0.0
+Gluing defect LA → sAMY : 0.0
+Gluing defect CA1sp → sAMY : 0.0
+Gluing defect PAL → sAMY : 0.0
+Gluing defect sAMY → CA1sp : 0.0
+Gluing defect sAMY → LA : 0.0
+Gluing defect sAMY → HY : 0.0
+Gluing defect LA → HPF : 0.0
+Gluing defect LA → CA1sp : 0.0
+Gluing defect HY → PAL : 0.0
+Gluing defect CA1sp → HPF : 0.0
+Gluing defect PAL → HPF : 0.0
+Gluing defect LA → PAL : 0.0
+Gluing defect HPF → sAMY : 0.0
+Gluing defect BLA → sAMY : 0.0
+Gluing defect sAMY → PAL : 0.0
+Gluing defect BLA → CA1sp : 0.0
+Gluing defect CA1sp → LA : 0.0
+Gluing defect HY → CA1sp : 0.0
+Gluing defect sAMY → BLA : 0.0
+Gluing defect HPF → HY : 0.0
+Gluing defect BLA → PAL : 0.0
+Gluing defect BLA → HPF : 0.0
+Gluing defect LA → BLA : 0.0
+Gluing defect HY → sAMY : 0.0
+Gluing defect PAL → HY : 0.0
+Gluing defect HPF → BLA : 0.0
+Gluing defect CA1sp → BLA : 0.0
+Gluing defect HPF → LA : 0.0
+Gluing defect HY → BLA : 0.0
+Gluing defect HPF → CA1sp : 0.0
+Gluing defect CA1sp → PAL : 0.0
+Gluing defect BLA → LA : 0.0
+Gluing defect HY → LA : 0.0
+Gluing defect HPF → PAL : 0.0
+Gluing defect HY → HPF : 0.0
+Gluing defect LA → HY : 0.0
+
+--- Singular support (defect > 1e6) ---
+
+--- Top 10 singular m6 pathways (crossing singular support) ---
+
+Driver finished. Perverse sheaf and pathways computed.
+SubString{String}["BLA", "sAMY", "PAL", "HY", "PAL", "HY"] : total=8.580640430004596e20, avg=1.4301067383340992e20
+SubString{String}["BLA", "sAMY", "PAL", "sAMY", "PAL", "HY"] : total=8.578288917224009e20, avg=1.429714819537335e20
+SubString{String}["HY", "sAMY", "HPF", "CA1sp", "HPF", "sAMY"] : total=2.4323617674184845e20, avg=4.053936279030808e19
+SubString{String}["CA1sp", "sAMY", "HPF", "sAMY", "HPF", "sAMY"] : total=1.906079328645877e20, avg=3.1767988810764616e19
+SubString{String}["BLA", "sAMY", "PAL", "sAMY", "HY", "PAL"] : total=1.6237066167737677e20, avg=2.706177694622946e19
+SubString{String}["HY", "sAMY", "PAL", "sAMY", "PAL", "sAMY"] : total=9.686987383403472e19, avg=1.614497897233912e19
+SubString{String}["CA1sp", "sAMY", "HPF", "CA1sp", "HPF", "sAMY"] : total=9.347179320650937e19, avg=1.5578632201084895e19
+SubString{String}["CA1sp", "sAMY", "HPF", "sAMY", "HPF", "sAMY"] : total=9.346616887011067e19, avg=1.5577694811685112e19
+SubString{String}["HY", "sAMY", "PAL", "sAMY", "HPF", "sAMY"] : total=8.342955154989369e19, avg=1.3904925258315614e19
+AbstractString["BLA", "sAMY", "PAL", "sAMY", "sAMY", "PAL"] : total=8.119469878086884e19, avg=1.3532449796811473e19
+AbstractString["BLA", "sAMY", "PAL", "HY", "HY", "PAL"] : total=8.118861046429073e19, avg=1.353143507738179e19
+AbstractString["BLA", "BLA", "sAMY", "PAL", "HY", "PAL"] : total=8.118364293074939e19, avg=1.3530607155124898e19
+AbstractString["BLA", "BLA", "sAMY", "PAL", "sAMY", "PAL"] : total=8.11766155411127e19, avg=1.3529435923518783e19
+SubString{String}["BLA", "sAMY", "PAL", "sAMY", "PAL", "sAMY"] : total=8.117445273918166e19, avg=1.3529075456530276e19
+AbstractString["BLA", "sAMY", "PAL", "HY", "PAL", "HY"] : total=8.073669225069365e19, avg=1.3456115375115608e19
+AbstractString["BLA", "sAMY", "sAMY", "PAL", "HY", "PAL"] : total=8.028297067151906e19, avg=1.3380495111919843e19
+AbstractString["BLA", "sAMY", "LA", "LA", "BLA", "sAMY"] : total=7.97850749537893e19, avg=1.3297512492298215e19
+SubString{String}["HY", "sAMY", "PAL", "sAMY", "BLA", "LA"] : total=7.611657375772752e19, avg=1.2686095626287921e19
+SubString{String}["HY", "sAMY", "HPF", "sAMY", "BLA", "sAMY"] : total=7.184724731083721e19, avg=1.1974541218472868e19
+SubString{String}["HY", "sAMY", "HPF", "sAMY", "HPF", "sAMY"] : total=7.1845625815712465e19, avg=1.197427096928541e19
+SubString{String}["CA1sp", "sAMY", "HPF", "sAMY", "BLA", "LA"] : total=6.866251777033248e19, avg=1.144375296172208e19
+SubString{String}["HY", "sAMY", "BLA", "LA", "BLA", "LA"] : total=5.982473182348263e19, avg=9.970788637247105e18
+SubString{String}["HY", "sAMY", "BLA", "sAMY", "BLA", "LA"] : total=5.981463497569594e19, avg=9.969105829282656e18
+SubString{String}["BLA", "sAMY", "BLA", "LA", "BLA", "sAMY"] : total=5.351195334643753e19, avg=8.918658891072922e18
+SubString{String}["CA1sp", "sAMY", "HPF", "sAMY", "PAL", "HY"] : total=3.506476767223771e19, avg=5.844127945372952e18
+SubString{String}["BLA", "sAMY", "LA", "BLA", "LA", "sAMY"] : total=3.019183526804622e19, avg=5.031972544674371e18
+AbstractString["BLA", "BLA", "sAMY", "LA", "BLA", "sAMY"] : total=2.7278576173227872e19, avg=4.5464293622046454e18
+SubString{String}["CA1sp", "sAMY", "HPF", "sAMY", "BLA", "sAMY"] : total=2.7140745583952663e19, avg=4.5234575973254436e18
+AbstractString["BLA", "BLA", "LA", "BLA", "LA", "sAMY"] : total=2.634531615488537e19, avg=4.3908860258142285e18
+AbstractString["BLA", "BLA", "LA", "sAMY", "BLA", "sAMY"] : total=2.6315472395089076e19, avg=4.385912065848179e18
+AbstractString["BLA", "BLA", "BLA", "LA", "BLA", "sAMY"] : total=2.630114719040858e19, avg=4.3835245317347635e18
+AbstractString["BLA", "sAMY", "LA", "BLA", "sAMY", "sAMY"] : total=2.630113787577871e19, avg=4.383522979296452e18
+AbstractString["BLA", "BLA", "LA", "LA", "BLA", "sAMY"] : total=2.630113787576302e19, avg=4.383522979293837e18
+AbstractString["BLA", "BLA", "LA", "BLA", "sAMY", "PAL"] : total=2.6301133166979105e19, avg=4.3835221944965176e18
+SubString{String}["BLA", "sAMY", "LA", "sAMY", "BLA", "sAMY"] : total=2.6301112266456244e19, avg=4.3835187110760407e18
+SubString{String}["BLA", "sAMY", "LA", "BLA", "sAMY", "HY"] : total=2.6293087675884937e19, avg=4.382181279314156e18
+AbstractString["BLA", "sAMY", "LA", "BLA", "sAMY", "PAL"] : total=2.6292809080656056e19, avg=4.382134846776009e18
+AbstractString["BLA", "BLA", "LA", "BLA", "sAMY", "HY"] : total=2.62669200934584e19, avg=4.3778200155764e18
+AbstractString["HY", "sAMY", "LA", "BLA", "sAMY", "BLA"] : total=1.9913102441592087e19, avg=3.3188504069320146e18
+SubString{String}["BLA", "sAMY", "PAL", "HY", "sAMY", "HY"] : total=1.6168898167834749e19, avg=2.6948163613057915e18
+AbstractString["BLA", "sAMY", "sAMY", "PAL", "HY", "sAMY"] : total=1.5892839128545958e19, avg=2.648806521424326e18
+SubString{String}["BLA", "sAMY", "PAL", "sAMY", "HY", "sAMY"] : total=1.5892743135026487e19, avg=2.6487905225044147e18
+SubString{String}["CA1sp", "sAMY", "HPF", "sAMY", "HPF", "sAMY"] : total=1.5781927839055452e19, avg=2.630321306509242e18
+AbstractString["BLA", "sAMY", "sAMY", "PAL", "sAMY", "HY"] : total=1.4936970140155484e19, avg=2.4894950233592474e18
+AbstractString["BLA", "sAMY", "BLA", "LA", "LA", "sAMY"] : total=1.3405509851040596e19, avg=2.2342516418400993e18
+SubString{String}["CA1sp", "sAMY", "PAL", "HY", "PAL", "HY"] : total=1.3156507332989268e19, avg=2.192751222164878e18
+SubString{String}["CA1sp", "sAMY", "PAL", "sAMY", "PAL", "HY"] : total=1.315290179844536e19, avg=2.1921502997408932e18
+SubString{String}["HY", "sAMY", "PAL", "sAMY", "PAL", "sAMY"] : total=1.200271534503342e19, avg=2.00045255750557e18
+SubString{String}["BLA", "sAMY", "HY", "PAL", "HY", "sAMY"] : total=1.1195908119978207e19, avg=1.8659846866630346e18
+SubString{String}["BLA", "sAMY", "PAL", "HY", "PAL", "sAMY"] : total=1.1127151105737425e19, avg=1.8545251842895708e18
+AbstractString["BLA", "sAMY", "PAL", "sAMY", "HY", "HY"] : total=1.0226585372184957e19, avg=1.7044308953641595e18
+AbstractString["BLA", "sAMY", "HY", "HY", "PAL", "sAMY"] : total=1.016643224228844e19, avg=1.69440537371474e18
+AbstractString["BLA", "sAMY", "sAMY", "PAL", "HY", "PAL"] : total=9.538147947410176e18, avg=1.5896913245683628e18
+AbstractString["BLA", "sAMY", "sAMY", "HY", "PAL", "HY"] : total=9.508528721090365e18, avg=1.5847547868483942e18
+AbstractString["HY", "sAMY", "PAL", "sAMY", "BLA", "LA"] : total=9.43133479402608e18, avg=1.5718891323376801e18
+SubString{String}["CA1sp", "sAMY", "BLA", "LA", "BLA", "LA"] : total=9.253964615351745e18, avg=1.5423274358919575e18
+SubString{String}["CA1sp", "sAMY", "BLA", "sAMY", "BLA", "LA"] : total=9.252400631013976e18, avg=1.5420667718356626e18
+SubString{String}["CA1sp", "sAMY", "HPF", "sAMY", "HPF", "sAMY"] : total=8.843387844246118e18, avg=1.4738979740410196e18
+AbstractString["BLA", "sAMY", "LA", "LA", "BLA", "sAMY"] : total=8.506100655828216e18, avg=1.417683442638036e18
+AbstractString["HY", "sAMY", "HPF", "sAMY", "BLA", "LA"] : total=8.122817720631851e18, avg=1.353802953438642e18
+SubString{String}["HY", "sAMY", "PAL", "sAMY", "PAL", "sAMY"] : total=7.578492479575308e18, avg=1.263082079929218e18
+AbstractString["BLA", "sAMY", "LA", "LA", "BLA", "sAMY"] : total=7.548936406506684e18, avg=1.258156067751114e18
+AbstractString["HY", "sAMY", "BLA", "LA", "BLA", "LA"] : total=7.412618309627407e18, avg=1.2354363849379013e18
+AbstractString["HY", "sAMY", "BLA", "sAMY", "BLA", "LA"] : total=7.261646944242117e18, avg=1.2102744907070195e18
+AbstractString["HY", "sAMY", "HPF", "HPF", "CA1sp", "sAMY"] : total=7.123122925814751e18, avg=1.1871871543024586e18
+AbstractString["HY", "sAMY", "HPF", "CA1sp", "sAMY", "BLA"] : total=7.121988789172697e18, avg=1.1869981315287828e18
+SubString{String}["HY", "sAMY", "HPF", "CA1sp", "sAMY", "HPF"] : total=7.113894736893288e18, avg=1.1856491228155482e18
+AbstractString["HY", "sAMY", "sAMY", "BLA", "LA", "BLA"] : total=7.107848391160207e18, avg=1.1846413985267013e18
+AbstractString["HY", "sAMY", "sAMY", "LA", "BLA", "LA"] : total=6.896453192230214e18, avg=1.1494088653717023e18
+AbstractString["HY", "sAMY", "sAMY", "BLA", "LA", "BLA"] : total=6.532059301479875e18, avg=1.0886765502466458e18
+AbstractString["CA1sp", "sAMY", "HPF", "CA1sp", "sAMY", "BLA"] : total=6.358163208087933e18, avg=1.0596938680146555e18
+AbstractString["BLA", "sAMY", "PAL", "HY", "sAMY", "PAL"] : total=6.357660853929457e18, avg=1.0596101423215761e18
+SubString{String}["CA1sp", "sAMY", "HPF", "CA1sp", "sAMY", "HPF"] : total=6.272144776554138e18, avg=1.045357462759023e18
+AbstractString["BLA", "BLA", "LA", "sAMY", "PAL", "HY"] : total=6.123592474664877e18, avg=1.0205987457774796e18
+SubString{String}["BLA", "sAMY", "LA", "sAMY", "PAL", "HY"] : total=5.965349351146183e18, avg=9.942248918576972e17
+AbstractString["BLA", "sAMY", "HY", "PAL", "sAMY", "PAL"] : total=5.812443794058677e18, avg=9.687406323431128e17
+SubString{String}["BLA", "sAMY", "BLA", "LA", "BLA", "sAMY"] : total=5.705051970374386e18, avg=9.508419950623976e17
+AbstractString["CA1sp", "sAMY", "HPF", "sAMY", "BLA", "LA"] : total=5.510393482708996e18, avg=9.183989137848326e17
+SubString{String}["BLA", "sAMY", "BLA", "LA", "BLA", "sAMY"] : total=5.063081013755019e18, avg=8.438468356258365e17
+SubString{String}["CA1sp", "sAMY", "HPF", "CA1sp", "sAMY", "LA"] : total=4.921091868848528e18, avg=8.201819781414214e17
+AbstractString["BLA", "sAMY", "PAL", "HY", "HY", "sAMY"] : total=4.832130309350012e18, avg=8.053550515583354e17
+AbstractString["BLA", "sAMY", "PAL", "HY", "HY", "PAL"] : total=4.771673063225752e18, avg=7.952788438709586e17
+AbstractString["BLA", "sAMY", "HY", "PAL", "HY", "HY"] : total=4.768540637739219e18, avg=7.947567729565364e17
+AbstractString["BLA", "sAMY", "sAMY", "sAMY", "PAL", "HY"] : total=4.768417422822207e18, avg=7.947362371370346e17
+AbstractString["BLA", "BLA", "sAMY", "sAMY", "PAL", "HY"] : total=4.767900354479177e18, avg=7.946500590798628e17
+AbstractString["HY", "sAMY", "sAMY", "BLA", "sAMY", "LA"] : total=4.767356214056617e18, avg=7.945593690094362e17
+AbstractString["BLA", "sAMY", "sAMY", "PAL", "HY", "HY"] : total=4.766587252713417e18, avg=7.944312087855694e17
+AbstractString["BLA", "sAMY", "PAL", "HY", "PAL", "PAL"] : total=4.766493046459738e18, avg=7.944155077432897e17
+AbstractString["BLA", "BLA", "sAMY", "PAL", "HY", "PAL"] : total=4.766467687072281e18, avg=7.944112811787135e17
+AbstractString["BLA", "sAMY", "PAL", "sAMY", "HY", "PAL"] : total=4.716010000569461e18, avg=7.860016667615768e17
+SubString{String}["BLA", "sAMY", "HY", "PAL", "sAMY", "HY"] : total=4.706194914081969e18, avg=7.843658190136616e17
+AbstractString["BLA", "BLA", "sAMY", "PAL", "HY", "sAMY"] : total=4.702751259390057e18, avg=7.837918765650095e17
+AbstractString["BLA", "BLA", "sAMY", "BLA", "LA", "sAMY"] : total=4.648830728296034e18, avg=7.748051213826724e17
+AbstractString["HY", "sAMY", "PAL", "sAMY", "LA", "BLA"] : total=4.521377117641154e18, avg=7.535628529401924e17
+AbstractString["BLA", "sAMY", "sAMY", "BLA", "LA", "sAMY"] : total=4.425493113824069e18, avg=7.375821856373449e17
+SubString{String}["BLA", "sAMY", "HPF", "BLA", "LA", "sAMY"] : total=4.4228080657200794e18, avg=7.371346776200132e17
+AbstractString["BLA", "sAMY", "BLA", "LA", "sAMY", "PAL"] : total=4.4222733684892877e18, avg=7.370455614148813e17
+AbstractString["BLA", "BLA", "sAMY", "HY", "PAL", "sAMY"] : total=4.355220861625069e18, avg=7.258701436041782e17
+SubString{String}["BLA", "sAMY", "BLA", "LA", "sAMY", "HY"] : total=4.3528513144866806e18, avg=7.254752190811135e17
+SubString{String}["BLA", "sAMY", "BLA", "sAMY", "LA", "sAMY"] : total=4.2423550089311483e18, avg=7.070591681551914e17
+AbstractString["HY", "sAMY", "HPF", "HPF", "sAMY", "LA"] : total=3.894769212860339e18, avg=6.491282021433898e17
+AbstractString["HY", "sAMY", "HPF", "sAMY", "LA", "BLA"] : total=3.894434970720845e18, avg=6.490724951201408e17
+SubString{String}["HY", "sAMY", "HPF", "BLA", "sAMY", "LA"] : total=3.8863013300590833e18, avg=6.477168883431805e17
+AbstractString["HY", "sAMY", "sAMY", "BLA", "LA", "sAMY"] : total=3.7579589788586455e18, avg=6.26326496476441e17
+AbstractString["CA1sp", "sAMY", "HPF", "CA1sp", "sAMY", "sAMY"] : total=3.729878685123233e18, avg=6.216464475205388e17
+AbstractString["HY", "sAMY", "sAMY", "HPF", "BLA", "LA"] : total=3.5616440202724905e18, avg=5.936073367120818e17
+AbstractString["HY", "sAMY", "LA", "BLA", "LA", "LA"] : total=3.553871038031178e18, avg=5.92311839671863e17
+AbstractString["HY", "sAMY", "sAMY", "sAMY", "BLA", "LA"] : total=3.5538553908098816e18, avg=5.92309231801647e17
+AbstractString["HY", "sAMY", "BLA", "LA", "BLA", "BLA"] : total=3.553695822640402e18, avg=5.922826371067337e17
+AbstractString["HY", "sAMY", "sAMY", "BLA", "LA", "LA"] : total=3.5536814819820155e18, avg=5.922802469970026e17
+SubString{String}["HY", "sAMY", "LA", "BLA", "sAMY", "LA"] : total=3.541452683084444e18, avg=5.902421138474074e17
+AbstractString["CA1sp", "sAMY", "HPF", "sAMY", "LA", "BLA"] : total=3.4762390158123505e18, avg=5.793731693020584e17
+AbstractString["HY", "sAMY", "BLA", "LA", "sAMY", "BLA"] : total=3.337500671010411e18, avg=5.562501118350685e17
+AbstractString["CA1sp", "sAMY", "HPF", "sAMY", "PAL", "HY"] : total=3.3177587067356954e18, avg=5.5295978445594925e17
+SubString{String}["HY", "sAMY", "HPF", "CA1sp", "sAMY", "LA"] : total=3.2284248333798467e18, avg=5.380708055633078e17
+SubString{String}["BLA", "sAMY", "LA", "BLA", "LA", "sAMY"] : total=3.21883248471547e18, avg=5.364720807859116e17
+AbstractString["CA1sp", "sAMY", "LA", "BLA", "sAMY", "BLA"] : total=3.0802502089072113e18, avg=5.1337503481786854e17
+AbstractString["BLA", "BLA", "sAMY", "LA", "BLA", "sAMY"] : total=2.908242121543682e18, avg=4.847070202572803e17
+SubString{String}["BLA", "sAMY", "LA", "BLA", "LA", "sAMY"] : total=2.856627578281087e18, avg=4.761045963801812e17
+AbstractString["BLA", "BLA", "LA", "BLA", "LA", "sAMY"] : total=2.8087447647901394e18, avg=4.681241274650232e17
+AbstractString["BLA", "BLA", "LA", "sAMY", "BLA", "sAMY"] : total=2.8055630416020736e18, avg=4.675938402670123e17
+AbstractString["BLA", "BLA", "BLA", "LA", "BLA", "sAMY"] : total=2.804035766732048e18, avg=4.673392944553413e17
+AbstractString["BLA", "BLA", "LA", "LA", "BLA", "sAMY"] : total=2.804034800092233e18, avg=4.6733913334870554e17
+AbstractString["BLA", "sAMY", "LA", "BLA", "sAMY", "sAMY"] : total=2.8040348000902236e18, avg=4.673391333483706e17
+AbstractString["BLA", "BLA", "LA", "BLA", "sAMY", "HPF"] : total=2.80403427165666e18, avg=4.6733904527611e17
+SubString{String}["BLA", "sAMY", "LA", "sAMY", "BLA", "sAMY"] : total=2.8040320711359345e18, avg=4.6733867852265574e17
+AbstractString["BLA", "sAMY", "LA", "BLA", "sAMY", "HPF"] : total=2.8031468185065405e18, avg=4.6719113641775674e17
+AbstractString["CA1sp", "sAMY", "HPF", "HPF", "CA1sp", "sAMY"] : total=2.738033110359706e18, avg=4.5633885172661766e17
+AbstractString["CA1sp", "sAMY", "HPF", "CA1sp", "sAMY", "PAL"] : total=2.7371095934990715e18, avg=4.5618493224984525e17
+SubString{String}["CA1sp", "sAMY", "HPF", "CA1sp", "sAMY", "HY"] : total=2.737106888781939e18, avg=4.561844814636565e17
+AbstractString["CA1sp", "sAMY", "HPF", "CA1sp", "sAMY", "sAMY"] : total=2.737032303295027e18, avg=4.561720505491712e17
+SubString{String}["CA1sp", "sAMY", "HPF", "CA1sp", "HPF", "sAMY"] : total=2.7369524865296635e18, avg=4.5615874775494394e17
+SubString{String}["HY", "sAMY", "LA", "BLA", "sAMY", "BLA"] : total=2.615355946059745e18, avg=4.358926576766241e17
+AbstractString["BLA", "BLA", "sAMY", "LA", "BLA", "sAMY"] : total=2.580986956493078e18, avg=4.3016449274884634e17
+AbstractString["BLA", "BLA", "LA", "BLA", "LA", "sAMY"] : total=2.492685717811065e18, avg=4.154476196351775e17
+SubString{String}["BLA", "sAMY", "LA", "BLA", "sAMY", "PAL"] : total=2.4924652159567647e18, avg=4.154108693261274e17
+AbstractString["BLA", "BLA", "LA", "sAMY", "BLA", "sAMY"] : total=2.489862023740834e18, avg=4.149770039568056e17
+SubString{String}["CA1sp", "sAMY", "PAL", "sAMY", "HY", "PAL"] : total=2.489594422112734e18, avg=4.149324036854557e17
+AbstractString["BLA", "BLA", "BLA", "LA", "BLA", "sAMY"] : total=2.4885066048917105e18, avg=4.1475110081528506e17
+AbstractString["BLA", "BLA", "LA", "LA", "BLA", "sAMY"] : total=2.4885057503524516e18, avg=4.1475095839207526e17
+AbstractString["BLA", "sAMY", "LA", "BLA", "sAMY", "sAMY"] : total=2.4885057503519084e18, avg=4.147509583919847e17
+AbstractString["BLA", "BLA", "LA", "BLA", "sAMY", "HY"] : total=2.488505278052367e18, avg=4.147508796753945e17
+SubString{String}["BLA", "sAMY", "LA", "sAMY", "BLA", "sAMY"] : total=2.4885033280322673e18, avg=4.1475055467204454e17
+AbstractString["BLA", "sAMY", "LA", "BLA", "sAMY", "HY"] : total=2.48771768716412e18, avg=4.1461961452735334e17
+AbstractString["HY", "sAMY", "PAL", "PAL", "HY", "sAMY"] : total=2.0265156413702648e18, avg=3.3775260689504416e17
+AbstractString["BLA", "BLA", "LA", "BLA", "sAMY", "PAL"] : total=1.905679107802109e18, avg=3.176131846336848e17
+SubString{String}["BLA", "sAMY", "PAL", "HY", "PAL", "sAMY"] : total=1.834768341635247e18, avg=3.057947236058745e17
+AbstractString["BLA", "sAMY", "PAL", "HY", "sAMY", "HY"] : total=1.4545453416557133e18, avg=2.4242422360928554e17
+AbstractString["CA1sp", "sAMY", "HPF", "HPF", "sAMY", "LA"] : total=1.4370559892760886e18, avg=2.3950933154601475e17
+AbstractString["BLA", "sAMY", "BLA", "LA", "LA", "sAMY"] : total=1.4291973304701143e18, avg=2.381995550783524e17
+SubString{String}["HY", "sAMY", "HY", "PAL", "HY", "sAMY"] : total=1.3823985042648468e18, avg=2.303997507108078e17
+AbstractString["HY", "sAMY", "PAL", "PAL", "sAMY", "sAMY"] : total=1.3735117692898714e18, avg=2.2891862821497856e17
+AbstractString["HY", "sAMY", "HY", "PAL", "sAMY", "sAMY"] : total=1.3735117692898606e18, avg=2.2891862821497677e17
+AbstractString["BLA", "sAMY", "BLA", "LA", "LA", "sAMY"] : total=1.2683743346809774e18, avg=2.1139572244682957e17
+AbstractString["CA1sp", "sAMY", "PAL", "sAMY", "sAMY", "PAL"] : total=1.2449408460975293e18, avg=2.0749014101625488e17
+AbstractString["CA1sp", "sAMY", "PAL", "HY", "HY", "PAL"] : total=1.24484749524583e18, avg=2.0747458254097165e17
+SubString{String}["CA1sp", "sAMY", "PAL", "sAMY", "PAL", "sAMY"] : total=1.244630417949466e18, avg=2.074384029915777e17
+AbstractString["CA1sp", "sAMY", "PAL", "HY", "PAL", "HY"] : total=1.237917384739384e18, avg=2.063195641232307e17
+AbstractString["CA1sp", "sAMY", "sAMY", "PAL", "HY", "PAL"] : total=1.2309615172976932e18, avg=2.0516025288294886e17
+SubString{String}["HY", "sAMY", "LA", "BLA", "sAMY", "HPF"] : total=1.2152831000888082e18, avg=2.025471833481347e17
+AbstractString["HY", "sAMY", "BLA", "sAMY", "LA", "LA"] : total=1.2134044874654344e18, avg=2.0223408124423907e17
+AbstractString["HY", "sAMY", "HPF", "HPF", "BLA", "sAMY"] : total=1.2133859748710948e18, avg=2.0223099581184912e17
+AbstractString["HY", "sAMY", "HPF", "BLA", "sAMY", "BLA"] : total=1.2129629470303867e18, avg=2.021604911717311e17
+AbstractString["HY", "sAMY", "LA", "LA", "BLA", "sAMY"] : total=1.2111390353158577e18, avg=2.018565058859763e17
+SubString{String}["HY", "sAMY", "HPF", "BLA", "sAMY", "HPF"] : total=1.2041228524460908e18, avg=2.0068714207434845e17
+AbstractString["BLA", "sAMY", "LA", "LA", "sAMY", "PAL"] : total=1.182843675022395e18, avg=1.9714061250373248e17
+AbstractString["BLA", "BLA", "LA", "sAMY", "PAL", "HY"] : total=1.1654627376592755e18, avg=1.9424378960987926e17
+AbstractString["CA1sp", "sAMY", "BLA", "LA", "BLA", "LA"] : total=1.1466176501374259e18, avg=1.9110294168957098e17
+AbstractString["CA1sp", "sAMY", "BLA", "sAMY", "BLA", "LA"] : total=1.1232647048017903e18, avg=1.872107841336317e17
+AbstractString["CA1sp", "sAMY", "HPF", "HPF", "CA1sp", "sAMY"] : total=1.1029719890430231e18, avg=1.8382866484050384e17
+AbstractString["CA1sp", "sAMY", "sAMY", "BLA", "LA", "BLA"] : total=1.0994746845854624e18, avg=1.8324578076424374e17
+AbstractString["CA1sp", "sAMY", "HPF", "BLA", "sAMY", "BLA"] : total=1.0829943793756969e18, avg=1.804990632292828e17
+SubString{String}["CA1sp", "sAMY", "HPF", "BLA", "sAMY", "HPF"] : total=1.0712635670365683e18, avg=1.7854392783942806e17
+AbstractString["CA1sp", "sAMY", "sAMY", "LA", "BLA", "LA"] : total=1.0667751170756547e18, avg=1.7779585284594243e17
+AbstractString["BLA", "BLA", "sAMY", "HY", "sAMY", "PAL"] : total=1.047545795045788e18, avg=1.7459096584096467e17
+AbstractString["BLA", "sAMY", "HY", "sAMY", "PAL", "HY"] : total=1.0425570670687898e18, avg=1.7375951117813162e17
+AbstractString["CA1sp", "sAMY", "sAMY", "BLA", "LA", "BLA"] : total=1.0104091425909004e18, avg=1.6840152376515005e17
+AbstractString["BLA", "BLA", "sAMY", "sAMY", "PAL", "sAMY"] : total=9.622418321740973e17, avg=1.6037363869568288e17
+AbstractString["BLA", "BLA", "sAMY", "PAL", "sAMY", "HY"] : total=9.621171582248288e17, avg=1.6035285970413814e17
+AbstractString["BLA", "sAMY", "PAL", "PAL", "sAMY", "HY"] : total=9.620628627924858e17, avg=1.603438104654143e17
+AbstractString["BLA", "sAMY", "PAL", "PAL", "sAMY", "PAL"] : total=9.620593485670627e17, avg=1.6034322476117712e17
+AbstractString["BLA", "sAMY", "sAMY", "PAL", "PAL", "sAMY"] : total=9.620570224067494e17, avg=1.6034283706779158e17
+AbstractString["BLA", "sAMY", "sAMY", "PAL", "HY", "sAMY"] : total=9.568653561490862e17, avg=1.5947755935818102e17
+AbstractString["BLA", "sAMY", "sAMY", "PAL", "sAMY", "PAL"] : total=9.531075654849117e17, avg=1.5885126091415197e17
+SubString{String}["HY", "sAMY", "BLA", "LA", "BLA", "sAMY"] : total=9.046974284733036e17, avg=1.507829047455506e17
+AbstractString["BLA", "sAMY", "sAMY", "HY", "PAL", "HY"] : total=9.021540940114236e17, avg=1.503590156685706e17
+AbstractString["HY", "sAMY", "sAMY", "LA", "BLA", "LA"] : total=8.80665041828429e17, avg=1.4677750697140483e17
+SubString{String}["HY", "sAMY", "HPF", "BLA", "LA", "sAMY"] : total=8.59434602011126e17, avg=1.4323910033518766e17
+SubString{String}["CA1sp", "sAMY", "HPF", "BLA", "LA", "sAMY"] : total=8.454999902573384e17, avg=1.4091666504288973e17
+SubString{String}["HY", "sAMY", "BLA", "LA", "sAMY", "LA"] : total=7.836489011896895e17, avg=1.3060815019828158e17
+SubString{String}["BLA", "sAMY", "BLA", "LA", "sAMY", "PAL"] : total=7.642378652922019e17, avg=1.273729775487003e17
+AbstractString["CA1sp", "sAMY", "sAMY", "BLA", "sAMY", "LA"] : total=7.374366019416749e17, avg=1.2290610032361248e17
+SubString{String}["HY", "sAMY", "PAL", "sAMY", "HY", "sAMY"] : total=6.445944419338612e17, avg=1.0743240698897688e17
+AbstractString["HY", "sAMY", "PAL", "HY", "sAMY", "BLA"] : total=6.441124913765404e17, avg=1.0735208189609006e17
+SubString{String}["HY", "sAMY", "PAL", "HY", "sAMY", "HPF"] : total=6.44112304475638e17, avg=1.0735205074593966e17
+SubString{String}["HY", "sAMY", "PAL", "HY", "sAMY", "LA"] : total=6.440372949510849e17, avg=1.0733954915851416e17
+AbstractString["HY", "sAMY", "PAL", "HY", "sAMY", "sAMY"] : total=6.438744558736553e17, avg=1.0731240931227589e17
+AbstractString["CA1sp", "sAMY", "HPF", "BLA", "sAMY", "sAMY"] : total=6.352746708671796e17, avg=1.058791118111966e17
+AbstractString["BLA", "BLA", "sAMY", "LA", "sAMY", "PAL"] : total=6.268932546657898e17, avg=1.0448220911096498e17
+AbstractString["HY", "sAMY", "HY", "PAL", "PAL", "sAMY"] : total=5.969591210575438e17, avg=9.949318684292397e16
+AbstractString["HY", "sAMY", "HY", "PAL", "sAMY", "BLA"] : total=5.888450460211845e17, avg=9.814084100353075e16
+SubString{String}["HY", "sAMY", "HY", "PAL", "sAMY", "HPF"] : total=5.886972099008716e17, avg=9.811620165014526e16
+AbstractString["HY", "sAMY", "sAMY", "HY", "PAL", "sAMY"] : total=5.886113194802844e17, avg=9.810188658004741e16
+AbstractString["BLA", "BLA", "BLA", "LA", "sAMY", "PAL"] : total=5.826494093519698e17, avg=9.710823489199496e16
+AbstractString["CA1sp", "sAMY", "sAMY", "BLA", "LA", "sAMY"] : total=5.812983937575684e17, avg=9.688306562626139e16
+AbstractString["BLA", "BLA", "LA", "sAMY", "HY", "PAL"] : total=5.796093246870845e17, avg=9.66015541145141e16
+AbstractString["BLA", "BLA", "LA", "sAMY", "PAL", "sAMY"] : total=5.758488246610987e17, avg=9.597480411018312e16
+SubString{String}["HY", "sAMY", "HY", "sAMY", "PAL", "sAMY"] : total=5.6913495383139066e17, avg=9.48558256385651e16
+AbstractString["BLA", "sAMY", "LA", "sAMY", "PAL", "HY"] : total=5.644301827699902e17, avg=9.40716971283317e16
+SubString{String}["HY", "sAMY", "PAL", "sAMY", "LA", "BLA"] : total=5.603128918734241e17, avg=9.338548197890402e16
+AbstractString["CA1sp", "sAMY", "sAMY", "HPF", "BLA", "LA"] : total=5.5093149279294554e17, avg=9.182191546549093e16
+AbstractString["CA1sp", "sAMY", "LA", "BLA", "LA", "LA"] : total=5.497291221392851e17, avg=9.162152035654752e16
+AbstractString["CA1sp", "sAMY", "sAMY", "sAMY", "BLA", "LA"] : total=5.497267117565719e17, avg=9.162111862609531e16
+AbstractString["CA1sp", "sAMY", "BLA", "LA", "BLA", "BLA"] : total=5.497020040134416e17, avg=9.161700066890693e16
+AbstractString["CA1sp", "sAMY", "sAMY", "BLA", "LA", "LA"] : total=5.496998107384572e17, avg=9.161663512307621e16
+SubString{String}["CA1sp", "sAMY", "LA", "BLA", "sAMY", "LA"] : total=5.4780819927227264e17, avg=9.130136654537877e16
+SubString{String}["HY", "sAMY", "HY", "PAL", "sAMY", "LA"] : total=5.2474065539023494e17, avg=8.74567758983725e16
+AbstractString["CA1sp", "sAMY", "BLA", "LA", "sAMY", "BLA"] : total=5.162600433303729e17, avg=8.604334055506216e16
+SubString{String}["BLA", "sAMY", "PAL", "HY", "sAMY", "PAL"] : total=5.1273428433920064e17, avg=8.545571405653344e16
+AbstractString["BLA", "sAMY", "HY", "PAL", "sAMY", "HY"] : total=5.1186673930250477e17, avg=8.531112321708413e16
+AbstractString["BLA", "BLA", "sAMY", "HY", "PAL", "sAMY"] : total=5.110725870666671e17, avg=8.517876451111118e16
+SubString{String}["BLA", "sAMY", "PAL", "sAMY", "HY", "sAMY"] : total=5.098587690358319e17, avg=8.497646150597198e16
+SubString{String}["sAMY", "PAL", "sAMY", "PAL", "HY", "PAL"] : total=5.0850133739929466e17, avg=8.475022289988245e16
+AbstractString["BLA", "BLA", "sAMY", "BLA", "LA", "sAMY"] : total=4.9562430436996154e17, avg=8.260405072832693e16
+AbstractString["BLA", "sAMY", "PAL", "HY", "sAMY", "sAMY"] : total=4.933260016225626e17, avg=8.22210002704271e16
+AbstractString["BLA", "BLA", "sAMY", "PAL", "HY", "sAMY"] : total=4.885031851675534e17, avg=8.141719752792557e16
+AbstractString["BLA", "sAMY", "PAL", "PAL", "HY", "sAMY"] : total=4.874778758862963e17, avg=8.124631264771605e16
+AbstractString["BLA", "sAMY", "sAMY", "BLA", "LA", "sAMY"] : total=4.718136818770759e17, avg=7.863561364617931e16
+SubString{String}["BLA", "sAMY", "HPF", "BLA", "LA", "sAMY"] : total=4.714713026471056e17, avg=7.857855044118427e16
+AbstractString["BLA", "sAMY", "BLA", "LA", "sAMY", "HPF"] : total=4.714704117555914e17, avg=7.857840195926523e16
+AbstractString["CA1sp", "sAMY", "HPF", "HPF", "BLA", "sAMY"] : total=4.67149798604925e17, avg=7.78582997674875e16
+SubString{String}["CA1sp", "sAMY", "HPF", "BLA", "sAMY", "HY"] : total=4.662520381867259e17, avg=7.770867303112098e16
+AbstractString["CA1sp", "sAMY", "HPF", "BLA", "sAMY", "PAL"] : total=4.662520176718627e17, avg=7.770866961197712e16
+SubString{String}["CA1sp", "sAMY", "HPF", "BLA", "LA", "sAMY"] : total=4.6623092618511706e17, avg=7.770515436418618e16
+AbstractString["CA1sp", "sAMY", "HPF", "BLA", "sAMY", "sAMY"] : total=4.661726137538276e17, avg=7.769543562563794e16
+SubString{String}["CA1sp", "sAMY", "HPF", "sAMY", "BLA", "sAMY"] : total=4.6609278068118016e17, avg=7.768213011353003e16
+AbstractString["CA1sp", "sAMY", "HPF", "HPF", "CA1sp", "sAMY"] : total=4.623217308567248e17, avg=7.705362180945413e16
+SubString{String}["CA1sp", "sAMY", "HPF", "CA1sp", "sAMY", "BLA"] : total=4.621727561543443e17, avg=7.702879269239072e16
+AbstractString["CA1sp", "sAMY", "HPF", "CA1sp", "sAMY", "LA"] : total=4.621656265783387e17, avg=7.702760442972312e16
+AbstractString["CA1sp", "sAMY", "HPF", "CA1sp", "sAMY", "sAMY"] : total=4.621527428153662e17, avg=7.702545713589437e16
+SubString{String}["CA1sp", "sAMY", "HPF", "CA1sp", "HPF", "sAMY"] : total=4.6213926559480474e17, avg=7.702321093246746e16
+AbstractString["BLA", "sAMY", "sAMY", "HY", "sAMY", "PAL"] : total=4.616521471759256e17, avg=7.694202452932094e16
+AbstractString["BLA", "sAMY", "sAMY", "HY", "PAL", "sAMY"] : total=4.5632950799550144e17, avg=7.605491799925024e16
+SubString{String}["CA1sp", "sAMY", "HPF", "sAMY", "HY", "sAMY"] : total=4.547884094211484e17, avg=7.579806823685806e16
+SubString{String}["BLA", "sAMY", "BLA", "sAMY", "LA", "sAMY"] : total=4.522888390708573e17, avg=7.538147317847621e16
+AbstractString["BLA", "sAMY", "HY", "PAL", "HY", "HY"] : total=4.5147612867841235e17, avg=7.524602144640206e16
+AbstractString["BLA", "BLA", "sAMY", "sAMY", "HY", "PAL"] : total=4.5117600445272026e17, avg=7.519600074212005e16
+AbstractString["BLA", "BLA", "sAMY", "HY", "PAL", "HY"] : total=4.5104487538241715e17, avg=7.517414589706952e16
+AbstractString["BLA", "sAMY", "PAL", "HY", "PAL", "PAL"] : total=4.50991559684057e17, avg=7.516525994734283e16
+AbstractString["BLA", "sAMY", "sAMY", "HY", "PAL", "PAL"] : total=4.5099050416290003e17, avg=7.516508402715e16
+AbstractString["BLA", "sAMY", "sAMY", "sAMY", "HY", "PAL"] : total=4.509842968608017e17, avg=7.516404947680029e16
+AbstractString["HY", "sAMY", "sAMY", "LA", "BLA", "sAMY"] : total=4.4925104588405754e17, avg=7.487517431400958e16
+AbstractString["HY", "sAMY", "sAMY", "LA", "sAMY", "BLA"] : total=4.440882699254673e17, avg=7.401471165424456e16
+AbstractString["HY", "sAMY", "LA", "BLA", "LA", "LA"] : total=4.4038153768962054e17, avg=7.33969229482701e16
+AbstractString["HY", "sAMY", "BLA", "LA", "BLA", "BLA"] : total=4.403278220085106e17, avg=7.338797033475176e16
+AbstractString["HY", "sAMY", "sAMY", "LA", "BLA", "BLA"] : total=4.403264381665781e17, avg=7.338773969442968e16
+AbstractString["HY", "sAMY", "sAMY", "sAMY", "LA", "BLA"] : total=4.403203263691937e17, avg=7.338672106153229e16
+AbstractString["BLA", "BLA", "sAMY", "BLA", "LA", "sAMY"] : total=4.3985328987106515e17, avg=7.330888164517752e16
+AbstractString["BLA", "sAMY", "sAMY", "BLA", "LA", "sAMY"] : total=4.187220003146307e17, avg=6.9787000052438456e16
+SubString{String}["BLA", "sAMY", "HPF", "BLA", "LA", "sAMY"] : total=4.184679520860769e17, avg=6.9744658681012824e16
+AbstractString["BLA", "sAMY", "BLA", "LA", "sAMY", "HY"] : total=4.1841735672020096e17, avg=6.9736226120033496e16
+SubString{String}["BLA", "sAMY", "HY", "PAL", "sAMY", "PAL"] : total=4.176843131276462e17, avg=6.961405218794103e16
+SubString{String}["CA1sp", "sAMY", "LA", "BLA", "sAMY", "BLA"] : total=4.0455521188088256e17, avg=6.742586864681376e16
+SubString{String}["BLA", "sAMY", "BLA", "sAMY", "LA", "sAMY"] : total=4.013942250607115e17, avg=6.6899037510118584e16
+AbstractString["sAMY", "sAMY", "LA", "BLA", "sAMY", "HPF"] : total=3.883916028669582e17, avg=6.4731933811159704e16
+AbstractString["HY", "sAMY", "LA", "BLA", "sAMY", "LA"] : total=2.9468258995041043e17, avg=4.911376499173507e16
+SubString{String}["HY", "sAMY", "BLA", "LA", "sAMY", "BLA"] : total=2.877555829409555e17, avg=4.7959263823492584e16
+SubString{String}["HY", "sAMY", "PAL", "HY", "PAL", "sAMY"] : total=2.696292481269323e17, avg=4.4938208021155384e16
+SubString{String}["HY", "sAMY", "PAL", "sAMY", "LA", "sAMY"] : total=2.6017897207177443e17, avg=4.336316201196241e16
+AbstractString["CA1sp", "sAMY", "HPF", "HPF", "CA1sp", "sAMY"] : total=2.5906153015512003e17, avg=4.317692169252001e16
+AbstractString["CA1sp", "sAMY", "HPF", "CA1sp", "sAMY", "HY"] : total=2.5897396903070922e17, avg=4.316232817178487e16
+AbstractString["CA1sp", "sAMY", "HPF", "CA1sp", "sAMY", "sAMY"] : total=2.5896683787162858e17, avg=4.316113964527143e16
+SubString{String}["CA1sp", "sAMY", "HPF", "CA1sp", "HPF", "sAMY"] : total=2.5895928577064346e17, avg=4.315988096177391e16
+SubString{String}["CA1sp", "sAMY", "HPF", "CA1sp", "sAMY", "PAL"] : total=2.5892596265266797e17, avg=4.315432710877799e16
+SubString{String}["sAMY", "PAL", "sAMY", "PAL", "sAMY", "PAL"] : total=2.542475851424821e17, avg=4.2374597523747016e16
+SubString{String}["CA1sp", "sAMY", "HPF", "sAMY", "LA", "BLA"] : total=2.5279880500946637e17, avg=4.213313416824439e16
+AbstractString["HY", "sAMY", "PAL", "PAL", "HY", "sAMY"] : total=2.5109654240611568e17, avg=4.1849423734352616e16
+SubString{String}["CA1sp", "sAMY", "PAL", "HY", "sAMY", "HY"] : total=2.479141608921577e17, avg=4.131902681535962e16
+AbstractString["CA1sp", "sAMY", "sAMY", "PAL", "HY", "sAMY"] : total=2.436814104897574e17, avg=4.061356841495957e16
+SubString{String}["CA1sp", "sAMY", "PAL", "sAMY", "HY", "sAMY"] : total=2.4367993843473254e17, avg=4.061332307245542e16
+SubString{String}["HY", "sAMY", "BLA", "LA", "BLA", "sAMY"] : total=2.330000303387118e17, avg=3.8833338389785304e16
+AbstractString["CA1sp", "sAMY", "sAMY", "PAL", "sAMY", "HY"] : total=2.2902528143427754e17, avg=3.817088023904626e16
+SubString{String}["HY", "sAMY", "LA", "sAMY", "HPF", "sAMY"] : total=2.2409896888358928e17, avg=3.734982814726488e16
+SubString{String}["HY", "sAMY", "HPF", "sAMY", "LA", "sAMY"] : total=2.2368475582985453e17, avg=3.728079263830909e16
+AbstractString["HY", "sAMY", "LA", "BLA", "LA", "BLA"] : total=2.108394318235653e17, avg=3.513990530392755e16
+SubString{String}["HY", "sAMY", "LA", "BLA", "LA", "sAMY"] : total=2.0774441572894368e17, avg=3.462406928815728e16
+SubString{String}["HY", "sAMY", "BLA", "LA", "sAMY", "HPF"] : total=2.0442770242648675e17, avg=3.407128373774779e16
+SubString{String}["HY", "sAMY", "BLA", "sAMY", "LA", "sAMY"] : total=2.043765540197398e17, avg=3.406275900328997e16
+SubString{String}["CA1sp", "sAMY", "HPF", "sAMY", "LA", "sAMY"] : total=1.9987726699268227e17, avg=3.331287783211371e16
+AbstractString["HY", "sAMY", "LA", "sAMY", "LA", "BLA"] : total=1.9788239080827494e17, avg=3.2980398468045824e16
+AbstractString["CA1sp", "sAMY", "HPF", "sAMY", "HY", "PAL"] : total=1.947612242891075e17, avg=3.246020404818458e16
+SubString{String}["HY", "sAMY", "PAL", "sAMY", "BLA", "sAMY"] : total=1.9132559598174602e17, avg=3.1887599330291004e16
+AbstractString["CA1sp", "sAMY", "HPF", "HPF", "BLA", "sAMY"] : total=1.8889457184378886e17, avg=3.1482428640631476e16
+AbstractString["CA1sp", "sAMY", "BLA", "sAMY", "LA", "LA"] : total=1.8769558317456288e17, avg=3.128259719576048e16
+AbstractString["CA1sp", "sAMY", "LA", "LA", "BLA", "sAMY"] : total=1.8734455796475683e17, avg=3.122409299412614e16
+SubString{String}["CA1sp", "sAMY", "LA", "BLA", "sAMY", "HPF"] : total=1.868171076143952e17, avg=3.11361846023992e16
+AbstractString["BLA", "BLA", "BLA", "sAMY", "LA", "sAMY"] : total=1.7947227262555626e17, avg=2.9912045437592708e16
+AbstractString["BLA", "BLA", "sAMY", "LA", "sAMY", "sAMY"] : total=1.7944819720350774e17, avg=2.9908032867251292e16
+SubString{String}["CA1sp", "sAMY", "HY", "PAL", "HY", "sAMY"] : total=1.7166439782737962e17, avg=2.8610732971229936e16
+SubString{String}["HY", "sAMY", "HY", "PAL", "HY", "sAMY"] : total=1.712868519641291e17, avg=2.854780866068818e16
+SubString{String}["CA1sp", "sAMY", "PAL", "HY", "PAL", "sAMY"] : total=1.7061015362071034e17, avg=2.8435025603451724e16
+AbstractString["HY", "sAMY", "HY", "PAL", "sAMY", "sAMY"] : total=1.701857361565635e17, avg=2.836428935942725e16
+AbstractString["HY", "sAMY", "PAL", "PAL", "sAMY", "sAMY"] : total=1.7018573615655856e17, avg=2.8364289359426428e16
+SubString{String}["CA1sp", "sAMY", "HPF", "BLA", "sAMY", "LA"] : total=1.675453870555519e17, avg=2.7924231175925316e16
+AbstractString["HY", "sAMY", "PAL", "PAL", "HY", "sAMY"] : total=1.5854189684878944e17, avg=2.642364947479824e16
+AbstractString["CA1sp", "sAMY", "PAL", "sAMY", "HY", "HY"] : total=1.5680198526008064e17, avg=2.613366421001344e16
+AbstractString["CA1sp", "sAMY", "HY", "HY", "PAL", "sAMY"] : total=1.5587967052051e17, avg=2.5979945086751668e16
+AbstractString["HY", "sAMY", "BLA", "sAMY", "LA", "LA"] : total=1.50383997786178e17, avg=2.5063999631029664e16
+AbstractString["HY", "sAMY", "BLA", "BLA", "sAMY", "BLA"] : total=1.5032264847655565e17, avg=2.505377474609261e16
+AbstractString["HY", "sAMY", "sAMY", "BLA", "BLA", "sAMY"] : total=1.5032216587465568e17, avg=2.5053694312442612e16
+AbstractString["HY", "sAMY", "sAMY", "BLA", "sAMY", "BLA"] : total=1.496937964333604e17, avg=2.4948966072226732e16
+AbstractString["HY", "sAMY", "HPF", "BLA", "sAMY", "LA"] : total=1.4931851275567155e17, avg=2.4886418792611924e16
+AbstractString["HY", "sAMY", "sAMY", "BLA", "LA", "sAMY"] : total=1.4800808212442656e17, avg=2.4668013687404428e16
+AbstractString["CA1sp", "sAMY", "sAMY", "PAL", "HY", "PAL"] : total=1.4624632449682355e17, avg=2.437438741613726e16
+AbstractString["CA1sp", "sAMY", "sAMY", "HY", "PAL", "HY"] : total=1.4579218256581782e17, avg=2.4298697094302972e16
+SubString{String}["BLA", "sAMY", "HY", "sAMY", "PAL", "sAMY"] : total=1.452551924604337e17, avg=2.4209198743405616e16
+SubString{String}["BLA", "sAMY", "HY", "sAMY", "HY", "sAMY"] : total=1.4353861619557627e17, avg=2.392310269926271e16
+AbstractString["CA1sp", "sAMY", "HPF", "HPF", "CA1sp", "HPF"] : total=1.4104644372521424e17, avg=2.350774062086904e16
+SubString{String}["CA1sp", "sAMY", "HPF", "sAMY", "HPF", "CA1sp"] : total=1.4100486938396573e17, avg=2.350081156399429e16
+SubString{String}["CA1sp", "sAMY", "HPF", "CA1sp", "sAMY", "HPF"] : total=1.409974131111627e17, avg=2.3499568851860452e16
+AbstractString["CA1sp", "sAMY", "HPF", "CA1sp", "HPF", "sAMY"] : total=1.4099619554985552e17, avg=2.349936592497592e16
+SubString{String}["CA1sp", "sAMY", "BLA", "LA", "BLA", "sAMY"] : total=1.3994276032035685e17, avg=2.332379338672614e16
+AbstractString["CA1sp", "sAMY", "sAMY", "LA", "BLA", "LA"] : total=1.3622531526514677e17, avg=2.2704219210857796e16
+AbstractString["HY", "sAMY", "PAL", "PAL", "sAMY", "BLA"] : total=1.3374503925229621e17, avg=2.22908398753827e16
+AbstractString["BLA", "BLA", "sAMY", "LA", "sAMY", "HY"] : total=1.2606193625503862e17, avg=2.1010322709173104e16
+SubString{String}["CA1sp", "sAMY", "BLA", "LA", "sAMY", "LA"] : total=1.2121772360675235e17, avg=2.0202953934458724e16
+SubString{String}["HY", "sAMY", "HY", "PAL", "HY", "sAMY"] : total=1.0815020454107085e17, avg=1.8025034090178476e16
+AbstractString["HY", "sAMY", "HY", "PAL", "sAMY", "sAMY"] : total=1.0745496202466675e17, avg=1.7909160337444458e16
+AbstractString["HY", "sAMY", "PAL", "PAL", "sAMY", "sAMY"] : total=1.0745496202465474e17, avg=1.7909160337442456e16
+AbstractString["CA1sp", "sAMY", "HPF", "BLA", "sAMY", "LA"] : total=1.0182485186459707e17, avg=1.6970808644099512e16
+AbstractString["CA1sp", "sAMY", "PAL", "HY", "sAMY", "PAL"] : total=9.748061931735806e16, avg=1.6246769886226344e16
+AbstractString["BLA", "BLA", "LA", "sAMY", "LA", "sAMY"] : total=9.244333991956797e16, avg=1.5407223319927994e16
+AbstractString["BLA", "sAMY", "BLA", "LA", "sAMY", "sAMY"] : total=9.010613903687995e16, avg=1.5017689839479992e16
+AbstractString["BLA", "BLA", "sAMY", "LA", "sAMY", "PAL"] : total=8.977897140537323e16, avg=1.4963161900895538e16
+AbstractString["BLA", "BLA", "sAMY", "LA", "LA", "sAMY"] : total=8.973606230545173e16, avg=1.4956010384241954e16
+AbstractString["BLA", "sAMY", "LA", "LA", "sAMY", "sAMY"] : total=8.97170893050222e16, avg=1.4952848217503702e16
+AbstractString["CA1sp", "sAMY", "HY", "PAL", "sAMY", "PAL"] : total=8.912092574416952e16, avg=1.4853487624028254e16
+SubString{String}["HY", "sAMY", "PAL", "sAMY", "HY", "sAMY"] : total=7.986883115936304e16, avg=1.331147185989384e16
+SubString{String}["BLA", "sAMY", "LA", "sAMY", "HY", "sAMY"] : total=7.983844349966333e16, avg=1.3306407249943888e16
+AbstractString["HY", "sAMY", "PAL", "HY", "sAMY", "LA"] : total=7.980911013063856e16, avg=1.3301518355106426e16
+AbstractString["HY", "sAMY", "PAL", "HY", "sAMY", "sAMY"] : total=7.977962090701966e16, avg=1.3296603484503278e16
+SubString{String}["HY", "sAMY", "PAL", "HY", "sAMY", "BLA"] : total=7.965229137145603e16, avg=1.3275381895242672e16
+AbstractString["CA1sp", "sAMY", "HPF", "HPF", "BLA", "sAMY"] : total=7.887906930096502e16, avg=1.3146511550160838e16
+SubString{String}["CA1sp", "sAMY", "HPF", "BLA", "sAMY", "BLA"] : total=7.878484379846798e16, avg=1.3130807299744664e16
+AbstractString["CA1sp", "sAMY", "HPF", "BLA", "sAMY", "sAMY"] : total=7.871406991155154e16, avg=1.3119011651925256e16
+SubString{String}["CA1sp", "sAMY", "HPF", "BLA", "LA", "sAMY"] : total=7.836630829112723e16, avg=1.3061051381854538e16
+SubString{String}["BLA", "sAMY", "HPF", "sAMY", "PAL", "HY"] : total=7.723030416071659e16, avg=1.2871717360119432e16
+AbstractString["CA1sp", "sAMY", "PAL", "HY", "HY", "sAMY"] : total=7.408999384688638e16, avg=1.2348332307814398e16
+AbstractString["HY", "sAMY", "HY", "PAL", "PAL", "sAMY"] : total=7.396655034971973e16, avg=1.2327758391619954e16
+AbstractString["CA1sp", "sAMY", "PAL", "HY", "HY", "PAL"] : total=7.316301615519074e16, avg=1.2193836025865122e16
+AbstractString["CA1sp", "sAMY", "HY", "PAL", "HY", "HY"] : total=7.31149852521314e16, avg=1.2185830875355232e16
+AbstractString["CA1sp", "sAMY", "sAMY", "sAMY", "PAL", "HY"] : total=7.311309813662334e16, avg=1.218551635610389e16
+AbstractString["CA1sp", "sAMY", "sAMY", "PAL", "HY", "HY"] : total=7.308503653983608e16, avg=1.2180839423306014e16
+AbstractString["CA1sp", "sAMY", "PAL", "HY", "PAL", "PAL"] : total=7.308358681979523e16, avg=1.2180597803299206e16
+AbstractString["HY", "sAMY", "HY", "PAL", "sAMY", "LA"] : total=7.296116712056104e16, avg=1.2160194520093506e16
+AbstractString["HY", "sAMY", "sAMY", "HY", "PAL", "sAMY"] : total=7.293221139825789e16, avg=1.2155368566376314e16
+AbstractString["HY", "sAMY", "BLA", "LA", "sAMY", "LA"] : total=7.256874083334294e16, avg=1.209479013889049e16
+AbstractString["CA1sp", "sAMY", "PAL", "sAMY", "HY", "PAL"] : total=7.230954668968437e16, avg=1.2051591114947394e16
+SubString{String}["CA1sp", "sAMY", "HY", "PAL", "sAMY", "HY"] : total=7.215905188995662e16, avg=1.2026508648326104e16
+AbstractString["HY", "sAMY", "BLA", "sAMY", "LA", "BLA"] : total=7.1203161801650536e16, avg=1.1867193633608422e16
+SubString{String}["HY", "sAMY", "HY", "sAMY", "PAL", "sAMY"] : total=7.051898156921596e16, avg=1.1753163594869326e16
+AbstractString["CA1sp", "sAMY", "sAMY", "LA", "BLA", "sAMY"] : total=6.9492228608206536e16, avg=1.1582038101367756e16
+AbstractString["BLA", "sAMY", "LA", "LA", "sAMY", "HY"] : total=6.9474444577804184e16, avg=1.1579074096300698e16
+AbstractString["CA1sp", "sAMY", "sAMY", "LA", "sAMY", "BLA"] : total=6.869362672248596e16, avg=1.1448937787080994e16
+AbstractString["BLA", "BLA", "LA", "sAMY", "HY", "PAL"] : total=6.842037017636252e16, avg=1.1403395029393754e16
+AbstractString["CA1sp", "sAMY", "LA", "BLA", "LA", "LA"] : total=6.812022726894758e16, avg=1.1353371211491264e16
+AbstractString["CA1sp", "sAMY", "BLA", "LA", "BLA", "BLA"] : total=6.811193328622041e16, avg=1.1351988881036734e16
+AbstractString["CA1sp", "sAMY", "sAMY", "LA", "BLA", "BLA"] : total=6.811172922777177e16, avg=1.1351954871295294e16
+AbstractString["CA1sp", "sAMY", "sAMY", "sAMY", "LA", "BLA"] : total=6.8110783826866024e16, avg=1.135179730447767e16
+AbstractString["HY", "sAMY", "PAL", "PAL", "sAMY", "LA"] : total=6.412078075221845e16, avg=1.0686796792036408e16
+AbstractString["sAMY", "sAMY", "BLA", "LA", "sAMY", "HPF"] : total=6.394614676919613e16, avg=1.0657691128199354e16
+AbstractString["BLA", "sAMY", "HY", "HY", "sAMY", "HY"] : total=6.181015039336061e16, avg=1.0301691732226768e16
+AbstractString["BLA", "BLA", "sAMY", "sAMY", "HY", "sAMY"] : total=6.179567372576347e16, avg=1.0299278954293912e16
+AbstractString["BLA", "BLA", "sAMY", "HY", "sAMY", "PAL"] : total=6.1790861060187864e16, avg=1.0298476843364644e16
+AbstractString["BLA", "sAMY", "HY", "sAMY", "PAL", "PAL"] : total=6.179084904741644e16, avg=1.0298474841236074e16
+AbstractString["BLA", "sAMY", "sAMY", "HY", "HY", "sAMY"] : total=6.17848228316068e16, avg=1.0297470471934466e16
+AbstractString["BLA", "sAMY", "sAMY", "HY", "sAMY", "HY"] : total=6.1501718915306024e16, avg=1.0250286485884338e16
+AbstractString["BLA", "sAMY", "sAMY", "HY", "PAL", "sAMY"] : total=6.1237692922016824e16, avg=1.020628215366947e16
+SubString{String}["HY", "sAMY", "HY", "PAL", "sAMY", "BLA"] : total=6.075981226119353e16, avg=1.0126635376865588e16
+AbstractString["BLA", "BLA", "sAMY", "PAL", "sAMY", "HY"] : total=5.7359719026005336e16, avg=9.55995317100089e15
+AbstractString["BLA", "sAMY", "PAL", "PAL", "sAMY", "HY"] : total=5.618804709781408e16, avg=9.364674516302346e15
+SubString{String}["BLA", "sAMY", "BLA", "sAMY", "PAL", "HY"] : total=5.390972081315643e16, avg=8.984953468859405e15
+SubString{String}["BLA", "sAMY", "HY", "sAMY", "PAL", "HY"] : total=5.275276818591276e16, avg=8.79212803098546e15
+SubString{String}["HY", "sAMY", "PAL", "sAMY", "HY", "sAMY"] : total=5.042903364652413e16, avg=8.404838941087355e15
+AbstractString["HY", "sAMY", "PAL", "HY", "sAMY", "HPF"] : total=5.039132394794295e16, avg=8.398553991323825e15
+AbstractString["HY", "sAMY", "PAL", "HY", "sAMY", "sAMY"] : total=5.037270648241255e16, avg=8.395451080402092e15
+AbstractString["HY", "sAMY", "HY", "PAL", "PAL", "sAMY"] : total=4.6702344371978424e16, avg=7.783724061996404e15
+AbstractString["HY", "sAMY", "HY", "PAL", "sAMY", "HPF"] : total=4.606754544652746e16, avg=7.677924241087909e15
+AbstractString["HY", "sAMY", "sAMY", "HY", "PAL", "sAMY"] : total=4.604926466320302e16, avg=7.674877443867171e15
+AbstractString["BLA", "BLA", "LA", "sAMY", "HY", "sAMY"] : total=4.603961838436919e16, avg=7.673269730728199e15
+AbstractString["CA1sp", "sAMY", "LA", "BLA", "sAMY", "LA"] : total=4.5582922069294984e16, avg=7.597153678215831e15
+SubString{String}["HY", "sAMY", "HY", "sAMY", "PAL", "sAMY"] : total=4.452555576883755e16, avg=7.420925961472925e15
+SubString{String}["CA1sp", "sAMY", "BLA", "LA", "sAMY", "BLA"] : total=4.4511358775059336e16, avg=7.418559795843223e15
+AbstractString["CA1sp", "sAMY", "HPF", "HPF", "BLA", "sAMY"] : total=4.419980941075977e16, avg=7.366634901793295e15
+SubString{String}["CA1sp", "sAMY", "HPF", "BLA", "sAMY", "PAL"] : total=4.411485461310014e16, avg=7.352475768850024e15
+AbstractString["CA1sp", "sAMY", "HPF", "BLA", "sAMY", "HY"] : total=4.411483408331402e16, avg=7.352472347219003e15
+SubString{String}["CA1sp", "sAMY", "HPF", "BLA", "LA", "sAMY"] : total=4.411286944866318e16, avg=7.352144908110531e15
+AbstractString["CA1sp", "sAMY", "HPF", "BLA", "sAMY", "sAMY"] : total=4.410735216418377e16, avg=7.351225360697295e15
+SubString{String}["CA1sp", "sAMY", "HPF", "sAMY", "BLA", "sAMY"] : total=4.409979868059745e16, avg=7.349966446766241e15
+SubString{String}["BLA", "sAMY", "HPF", "sAMY", "BLA", "sAMY"] : total=4.270896260492594e16, avg=7.118160434154323e15
+SubString{String}["BLA", "sAMY", "LA", "sAMY", "LA", "sAMY"] : total=4.1417835809208696e16, avg=6.902972634868116e15
+SubString{String}["CA1sp", "sAMY", "HPF", "sAMY", "PAL", "sAMY"] : total=3.933964977297906e16, avg=6.556608295496509e15
+SubString{String}["BLA", "sAMY", "LA", "BLA", "LA", "BLA"] : total=3.8890296071911176e16, avg=6.481716011985196e15
+SubString{String}["CA1sp", "sAMY", "HPF", "BLA", "LA", "BLA"] : total=3.850609542139587e16, avg=6.417682570232645e15
+SubString{String}["CA1sp", "sAMY", "BLA", "LA", "BLA", "sAMY"] : total=3.604116925188664e16, avg=6.006861541981107e15
+AbstractString["BLA", "sAMY", "HY", "sAMY", "HY", "PAL"] : total=3.5592837751419064e16, avg=5.932139625236511e15
+SubString{String}["CA1sp", "sAMY", "LA", "sAMY", "HPF", "sAMY"] : total=3.4229505832719064e16, avg=5.704917638786511e15
+AbstractString["BLA", "BLA", "BLA", "LA", "sAMY", "HY"] : total=3.4217326112536708e16, avg=5.702887685422785e15
+SubString{String}["HY", "sAMY", "PAL", "HY", "PAL", "sAMY"] : total=3.340856682339088e16, avg=5.568094470565147e15
+AbstractString["BLA", "BLA", "LA", "BLA", "LA", "BLA"] : total=3.328914210016838e16, avg=5.548190350028063e15
+SubString{String}["BLA", "sAMY", "LA", "BLA", "sAMY", "BLA"] : total=3.3288705216141836e16, avg=5.548117536023639e15
+AbstractString["BLA", "BLA", "LA", "BLA", "sAMY", "BLA"] : total=3.3288705212985936e16, avg=5.548117535497656e15
+AbstractString["sAMY", "sAMY", "BLA", "LA", "BLA", "sAMY"] : total=3.3278309627074692e16, avg=5.546384937845782e15
+AbstractString["BLA", "sAMY", "LA", "sAMY", "HY", "PAL"] : total=3.3133389469780196e16, avg=5.522231578296699e15
+AbstractString["CA1sp", "sAMY", "LA", "BLA", "LA", "BLA"] : total=3.261361241310842e16, avg=5.435602068851403e15
+SubString{String}["CA1sp", "sAMY", "LA", "BLA", "LA", "sAMY"] : total=3.2134861978571544e16, avg=5.355810329761924e15
+SubString{String}["CA1sp", "sAMY", "BLA", "sAMY", "LA", "sAMY"] : total=3.1611871191144092e16, avg=5.268645198524015e15
+SubString{String}["CA1sp", "sAMY", "BLA", "LA", "sAMY", "HPF"] : total=3.1425169138382584e16, avg=5.237528189730431e15
+AbstractString["CA1sp", "sAMY", "LA", "sAMY", "LA", "BLA"] : total=3.060935770348233e16, avg=5.101559617247055e15
+SubString{String}["CA1sp", "sAMY", "PAL", "HY", "PAL", "sAMY"] : total=2.813210402859121e16, avg=4.688684004765201e15
+AbstractString["sAMY", "sAMY", "LA", "BLA", "sAMY", "BLA"] : total=2.8000028809272564e16, avg=4.666671468212094e15
+AbstractString["BLA", "BLA", "sAMY", "HY", "PAL", "HY"] : total=2.777889111905366e16, avg=4.629815186508943e15
+SubString{String}["HY", "sAMY", "LA", "BLA", "LA", "BLA"] : total=2.623330417995929e16, avg=4.372217363326548e15
+AbstractString["BLA", "BLA", "sAMY", "HY", "sAMY", "HY"] : total=2.6200422271698784e16, avg=4.3667370452831305e15
+SubString{String}["HY", "sAMY", "LA", "sAMY", "LA", "BLA"] : total=2.5886685503768516e16, avg=4.3144475839614195e15
+SubString{String}["CA1sp", "sAMY", "HPF", "sAMY", "HPF", "BLA"] : total=2.4140401711809664e16, avg=4.0234002853016105e15
+SubString{String}["CA1sp", "sAMY", "HPF", "BLA", "sAMY", "HPF"] : total=2.401788543236738e16, avg=4.0029809053945635e15
+AbstractString["BLA", "sAMY", "HY", "PAL", "HY", "PAL"] : total=2.3873026415236732e16, avg=3.9788377358727885e15
+AbstractString["CA1sp", "sAMY", "BLA", "sAMY", "LA", "LA"] : total=2.326208351181042e16, avg=3.87701391863507e15
+AbstractString["CA1sp", "sAMY", "BLA", "BLA", "sAMY", "BLA"] : total=2.3252598842304236e16, avg=3.8754331403840395e15
+AbstractString["CA1sp", "sAMY", "sAMY", "BLA", "BLA", "sAMY"] : total=2.3252527605766372e16, avg=3.8754212676277285e15
+AbstractString["CA1sp", "sAMY", "sAMY", "BLA", "sAMY", "BLA"] : total=2.315532851543047e16, avg=3.859221419238412e15
+AbstractString["CA1sp", "sAMY", "sAMY", "BLA", "LA", "sAMY"] : total=2.2894574563662308e16, avg=3.8157624272770515e15
+AbstractString["CA1sp", "sAMY", "PAL", "HY", "sAMY", "HY"] : total=2.2302225008055904e16, avg=3.7170375013426505e15
+AbstractString["sAMY", "sAMY", "PAL", "HY", "sAMY", "HPF"] : total=2.176161199418249e16, avg=3.626935332363748e15
+AbstractString["sAMY", "sAMY", "HY", "PAL", "sAMY", "HPF"] : total=2.1650085269048504e16, avg=3.6083475448414175e15
+SubString{String}["HY", "sAMY", "PAL", "HY", "PAL", "sAMY"] : total=2.1094112969733492e16, avg=3.515685494955582e15
+AbstractString["HY", "sAMY", "LA", "sAMY", "BLA", "LA"] : total=2.0706603280735624e16, avg=3.4511005467892705e15
+SubString{String}["sAMY", "PAL", "HY", "PAL", "sAMY", "HPF"] : total=1.946230606002472e16, avg=3.2437176766707865e15
+AbstractString["BLA", "BLA", "BLA", "sAMY", "LA", "sAMY"] : total=1.913401990820008e16, avg=3.1890033180333465e15
+AbstractString["BLA", "BLA", "sAMY", "LA", "sAMY", "sAMY"] : total=1.91314531629252e16, avg=3.1885755271542e15
+SubString{String}["HY", "sAMY", "LA", "sAMY", "BLA", "LA"] : total=1.8509460581255228e16, avg=3.0849100968758715e15
+SubString{String}["CA1sp", "sAMY", "HPF", "sAMY", "HY", "PAL"] : total=1.840443241317697e16, avg=3.0674054021961615e15
+AbstractString["BLA", "sAMY", "sAMY", "LA", "sAMY", "PAL"] : total=1.7654091144450712e16, avg=2.9423485240751185e15
+AbstractString["BLA", "BLA", "BLA", "sAMY", "LA", "sAMY"] : total=1.69809299569019e16, avg=2.8301549928169835e15
+AbstractString["BLA", "BLA", "sAMY", "LA", "sAMY", "sAMY"] : total=1.697865203924639e16, avg=2.8297753398743985e15
+AbstractString["CA1sp", "sAMY", "HY", "sAMY", "PAL", "HY"] : total=1.5988124810451134e16, avg=2.6646874684085225e15
+AbstractString["CA1sp", "sAMY", "PAL", "PAL", "sAMY", "HY"] : total=1.4751102872295824e16, avg=2.4585171453826375e15
+AbstractString["CA1sp", "sAMY", "PAL", "PAL", "sAMY", "PAL"] : total=1.4751044486506266e16, avg=2.458507414417711e15
+AbstractString["CA1sp", "sAMY", "sAMY", "PAL", "PAL", "sAMY"] : total=1.4751013322945322e16, avg=2.458502220490887e15
+AbstractString["CA1sp", "sAMY", "sAMY", "PAL", "HY", "sAMY"] : total=1.4671410681601712e16, avg=2.4452351136002855e15
+AbstractString["CA1sp", "sAMY", "sAMY", "PAL", "sAMY", "PAL"] : total=1.4613793225578432e16, avg=2.435632204263072e15
+AbstractString["CA1sp", "sAMY", "sAMY", "HY", "PAL", "HY"] : total=1.3832529331626534e16, avg=2.305421555271089e15
+AbstractString["HY", "sAMY", "LA", "LA", "BLA", "sAMY"] : total=1.3198609533089344e16, avg=2.1997682555148908e15
+AbstractString["HY", "sAMY", "LA", "sAMY", "BLA", "BLA"] : total=1.21416978336031e16, avg=2.0236163056005168e15
+AbstractString["HY", "sAMY", "sAMY", "LA", "sAMY", "HPF"] : total=1.2121505581181638e16, avg=2.0202509301969398e15
+AbstractString["HY", "sAMY", "LA", "LA", "sAMY", "LA"] : total=1.2113398514992658e16, avg=2.0188997524987762e15
+AbstractString["HY", "sAMY", "sAMY", "LA", "LA", "sAMY"] : total=1.2112747669626562e16, avg=2.0187912782710938e15
+AbstractString["HY", "sAMY", "sAMY", "LA", "BLA", "sAMY"] : total=1.1788981526908796e16, avg=1.9648302544847992e15
+SubString{String}["BLA", "sAMY", "HPF", "CA1sp", "HPF", "sAMY"] : total=1.1425001632425494e16, avg=1.9041669387375822e15
+SubString{String}["HY", "sAMY", "LA", "BLA", "LA", "sAMY"] : total=1.1404524286835006e16, avg=1.9007540478058342e15
+AbstractString["CA1sp", "sAMY", "BLA", "LA", "sAMY", "LA"] : total=1.122526416889316e16, avg=1.8708773614821932e15
+AbstractString["sAMY", "sAMY", "sAMY", "BLA", "LA", "BLA"] : total=1.1202524577887752e16, avg=1.8670874296479588e15
+AbstractString["sAMY", "sAMY", "BLA", "LA", "BLA", "BLA"] : total=1.120205618841935e16, avg=1.8670093647365582e15
+AbstractString["HY", "sAMY", "sAMY", "LA", "sAMY", "LA"] : total=1.102587965947245e16, avg=1.837646609912075e15
+AbstractString["CA1sp", "sAMY", "BLA", "sAMY", "LA", "BLA"] : total=1.1015774179511402e16, avg=1.8359623632519002e15
+SubString{String}["BLA", "sAMY", "HY", "PAL", "HY", "sAMY"] : total=1.0723565925695988e16, avg=1.787260987615998e15
+SubString{String}["BLA", "sAMY", "HPF", "sAMY", "BLA", "sAMY"] : total=1.0708264848097052e16, avg=1.7847108080161752e15
+AbstractString["sAMY", "sAMY", "BLA", "LA", "BLA", "LA"] : total=1.053700732570713e16, avg=1.756167887617855e15
+AbstractString["sAMY", "sAMY", "LA", "BLA", "LA", "BLA"] : total=1.0536977684314036e16, avg=1.7561629473856728e15
+AbstractString["HY", "sAMY", "PAL", "sAMY", "HPF", "BLA"] : total=1.0439830575233792e16, avg=1.7399717625389652e15
+AbstractString["BLA", "BLA", "sAMY", "BLA", "sAMY", "PAL"] : total=1.0258486896067796e16, avg=1.7097478160112992e15
+AbstractString["BLA", "sAMY", "BLA", "sAMY", "PAL", "HY"] : total=1.0258392944701876e16, avg=1.7097321574503128e15
+AbstractString["BLA", "BLA", "LA", "sAMY", "LA", "sAMY"] : total=9.85563223837682e15, avg=1.6426053730628032e15
+AbstractString["sAMY", "sAMY", "BLA", "LA", "sAMY", "BLA"] : total=9.640350181588132e15, avg=1.6067250302646888e15
+AbstractString["BLA", "sAMY", "BLA", "LA", "sAMY", "sAMY"] : total=9.606456980443116e15, avg=1.601076163407186e15
+AbstractString["BLA", "BLA", "sAMY", "LA", "sAMY", "HPF"] : total=9.571576673054334e15, avg=1.595262778842389e15
+AbstractString["BLA", "BLA", "sAMY", "LA", "LA", "sAMY"] : total=9.567002109038266e15, avg=1.5945003515063778e15
+AbstractString["BLA", "sAMY", "LA", "LA", "sAMY", "sAMY"] : total=9.564979346619494e15, avg=1.5941632244365822e15
+SubString{String}["sAMY", "PAL", "sAMY", "HY", "sAMY", "PAL"] : total=9.535342553379252e15, avg=1.589223758896542e15
+AbstractString["HY", "sAMY", "HPF", "HPF", "sAMY", "HPF"] : total=9.269370207535798e15, avg=1.5448950345892998e15
+AbstractString["BLA", "sAMY", "PAL", "sAMY", "PAL", "HY"] : total=9.134508028933476e15, avg=1.522418004822246e15
+AbstractString["HY", "sAMY", "sAMY", "HPF", "CA1sp", "sAMY"] : total=9.061642651763142e15, avg=1.510273775293857e15
+AbstractString["HY", "sAMY", "sAMY", "HPF", "HPF", "sAMY"] : total=9.06161645139834e15, avg=1.51026940856639e15
+AbstractString["HY", "sAMY", "sAMY", "HPF", "BLA", "sAMY"] : total=9.060863133050648e15, avg=1.5101438555084412e15
+AbstractString["HY", "sAMY", "sAMY", "HPF", "sAMY", "HPF"] : total=9.060659176132102e15, avg=1.5101098626886838e15
+SubString{String}["HY", "sAMY", "LA", "sAMY", "BLA", "sAMY"] : total=9.033451189569672e15, avg=1.505575198261612e15
+AbstractString["HY", "sAMY", "HPF", "sAMY", "BLA", "BLA"] : total=8.992400218572693e15, avg=1.4987333697621155e15
+AbstractString["HY", "sAMY", "HPF", "sAMY", "HPF", "BLA"] : total=8.99220601574388e15, avg=1.49870100262398e15
+AbstractString["CA1sp", "sAMY", "HPF", "sAMY", "HPF", "BLA"] : total=8.76157663866964e15, avg=1.4602627731116068e15
+AbstractString["BLA", "BLA", "LA", "sAMY", "LA", "sAMY"] : total=8.74660952860033e15, avg=1.4577682547667218e15
+AbstractString["HY", "sAMY", "sAMY", "HPF", "sAMY", "LA"] : total=8.661479120323926e15, avg=1.443579853387321e15
+AbstractString["BLA", "sAMY", "BLA", "LA", "sAMY", "sAMY"] : total=8.525473163104715e15, avg=1.4209121938507858e15
+AbstractString["BLA", "BLA", "sAMY", "LA", "sAMY", "HY"] : total=8.494517813479594e15, avg=1.4157529689132658e15
+AbstractString["BLA", "BLA", "sAMY", "LA", "LA", "sAMY"] : total=8.49045802184408e15, avg=1.4150763369740132e15
+AbstractString["BLA", "sAMY", "LA", "LA", "sAMY", "sAMY"] : total=8.488662874398745e15, avg=1.4147771457331242e15
+AbstractString["HY", "sAMY", "HPF", "BLA", "LA", "LA"] : total=8.473669121417004e15, avg=1.412278186902834e15
+SubString{String}["CA1sp", "sAMY", "PAL", "HY", "sAMY", "PAL"] : total=7.861649008276637e15, avg=1.3102748347127728e15
+AbstractString["CA1sp", "sAMY", "HY", "PAL", "sAMY", "HY"] : total=7.848303044593012e15, avg=1.3080505074321688e15
+SubString{String}["CA1sp", "sAMY", "PAL", "sAMY", "HY", "sAMY"] : total=7.817554689867589e15, avg=1.3029257816445982e15
+
+--- Simulating time evolution using m₂ ---
+Plots saved: baseline_dynamics.png, perturbed_dynamics.png
+Writing baseline VTU files...
+Writing perturbed VTU files...
+Writing static reference VTU file...
+Time evolution simulation and VTK export completed.
+
+=== Full gluing defects (m3+m4+m5+m6) ===
+sAMY ↔ HPF : m3=0.0, m4=0.0, m5=0.0, m6=0.0, total=0.0
+sAMY ↔ BLA : m3=0.0, m4=0.0, m5=0.0, m6=0.0, total=0.0
+sAMY ↔ CA1sp : m3=0.0, m4=0.0, m5=0.0, m6=0.0, total=0.0
+sAMY ↔ HY : m3=0.0, m4=0.0, m5=0.0, m6=0.0, total=0.0
+sAMY ↔ LA : m3=0.0, m4=0.0, m5=0.0, m6=0.0, total=0.0
+sAMY ↔ PAL : m3=0.0, m4=0.0, m5=0.0, m6=0.0, total=0.0
+HPF ↔ sAMY : m3=0.0, m4=0.0, m5=0.0, m6=0.0, total=0.0
+HPF ↔ BLA : m3=0.0, m4=0.0, m5=0.0, m6=0.0, total=0.0
+HPF ↔ CA1sp : m3=0.0, m4=0.0, m5=0.0, m6=0.0, total=0.0
+HPF ↔ HY : m3=0.0, m4=0.0, m5=0.0, m6=0.0, total=0.0
+HPF ↔ LA : m3=0.0, m4=0.0, m5=0.0, m6=0.0, total=0.0
+HPF ↔ PAL : m3=0.0, m4=0.0, m5=0.0, m6=0.0, total=0.0
+BLA ↔ sAMY : m3=0.0, m4=0.0, m5=0.0, m6=0.0, total=0.0
+BLA ↔ HPF : m3=0.0, m4=0.0, m5=0.0, m6=0.0, total=0.0
+BLA ↔ CA1sp : m3=0.0, m4=0.0, m5=0.0, m6=0.0, total=0.0
+BLA ↔ HY : m3=0.0, m4=0.0, m5=0.0, m6=0.0, total=0.0
+BLA ↔ LA : m3=0.0, m4=0.0, m5=0.0, m6=0.0, total=0.0
+BLA ↔ PAL : m3=0.0, m4=0.0, m5=0.0, m6=0.0, total=0.0
+CA1sp ↔ sAMY : m3=0.0, m4=0.0, m5=0.0, m6=0.0, total=0.0
+CA1sp ↔ HPF : m3=0.0, m4=0.0, m5=0.0, m6=0.0, total=0.0
+CA1sp ↔ BLA : m3=0.0, m4=0.0, m5=0.0, m6=0.0, total=0.0
+CA1sp ↔ HY : m3=0.0, m4=0.0, m5=0.0, m6=0.0, total=0.0
+CA1sp ↔ LA : m3=0.0, m4=0.0, m5=0.0, m6=0.0, total=0.0
+CA1sp ↔ PAL : m3=0.0, m4=0.0, m5=0.0, m6=0.0, total=0.0
+HY ↔ sAMY : m3=0.0, m4=0.0, m5=0.0, m6=0.0, total=0.0
+HY ↔ HPF : m3=0.0, m4=0.0, m5=0.0, m6=0.0, total=0.0
+HY ↔ BLA : m3=0.0, m4=0.0, m5=0.0, m6=0.0, total=0.0
+HY ↔ CA1sp : m3=0.0, m4=0.0, m5=0.0, m6=0.0, total=0.0
+HY ↔ LA : m3=0.0, m4=0.0, m5=0.0, m6=0.0, total=0.0
+HY ↔ PAL : m3=0.0, m4=0.0, m5=0.0, m6=0.0, total=0.0
+LA ↔ sAMY : m3=0.0, m4=0.0, m5=0.0, m6=0.0, total=0.0
+LA ↔ HPF : m3=0.0, m4=0.0, m5=0.0, m6=0.0, total=0.0
+LA ↔ BLA : m3=0.0, m4=0.0, m5=0.0, m6=0.0, total=0.0
+LA ↔ CA1sp : m3=0.0, m4=0.0, m5=0.0, m6=0.0, total=0.0
+LA ↔ HY : m3=0.0, m4=0.0, m5=0.0, m6=0.0, total=0.0
+LA ↔ PAL : m3=0.0, m4=0.0, m5=0.0, m6=0.0, total=0.0
+PAL ↔ sAMY : m3=0.0, m4=0.0, m5=0.0, m6=0.0, total=0.0
+PAL ↔ HPF : m3=0.0, m4=0.0, m5=0.0, m6=0.0, total=0.0
+PAL ↔ BLA : m3=0.0, m4=0.0, m5=0.0, m6=0.0, total=0.0
+PAL ↔ CA1sp : m3=0.0, m4=0.0, m5=0.0, m6=0.0, total=0.0
+PAL ↔ HY : m3=0.0, m4=0.0, m5=0.0, m6=0.0, total=0.0
+PAL ↔ LA : m3=0.0, m4=0.0, m5=0.0, m6=0.0, total=0.0
+
+Example m3 comparison for triple (:f_HY_LA, :f_LA_BLA, :f_BLA_LA):
+  sAMY : Dict(:f_HY_LA => -1.0)
+  HPF : Dict(:f_HY_LA => -1.0)
