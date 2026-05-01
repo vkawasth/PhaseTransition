@@ -1,3 +1,4 @@
+<img width="1408" height="768" alt="Gemini_Generated_Image_w04cojw04cojw04c" src="https://github.com/user-attachments/assets/f6dd4465-72e5-4189-b5c1-05dc9065245a" />
 Copyright (c) 2025 VINAY K AWASTHI
 
 Permission is hereby granted for non‑commercial, non‑military purposes only.  
@@ -215,7 +216,16 @@ View From Grassmannians.
 BALBc Brain responding to Opiate Norcain dynamics where HH2 is comuted using curved A infinity algebras showing perfect correlation as interactions proceeds.
 We also model rebound dynamics (thin vessels towrds the edge opf the brain have very loopy structures that absorb drug slowly abd responds with a rebound effect.
 
+Monodromy Dynamics and Assciahedron IHar Zeta correlation with Plucker Zeta and Perverse Sheafs
+
 <img width="3284" height="4566" alt="comprehensive_21panel_dashboard" src="https://github.com/user-attachments/assets/cff61010-93bc-441f-b9e7-91c4b69a666b" />
+
+<img width="1408" height="768" alt="Gemini_Generated_Image_r9k6enr9k6enr9k6" src="https://github.com/user-attachments/assets/320f4873-a72d-4d91-94b7-c075b2c7a9c3" />
+
+Tube flips/Support on Associahedron wrt to Monodromy.
+<img width="1800" height="800" alt="scores" src="https://github.com/user-attachments/assets/df5a4ee3-0d93-4496-983e-08e9da29c08a" />
+<img width="1800" height="800" alt="transport" src="https://github.com/user-attachments/assets/393255c7-87ff-4b02-a9e9-e3c423fc7b5e" />
+<img width="1800" height="900" alt="tube_participation" src="https://github.com/user-attachments/assets/ba433836-99c2-461b-b012-313595565f30" />
 
 
 
