@@ -24,6 +24,8 @@ import ast
 import re
 import meshio
 import pyvista as pv
+import shutil
+import time
 
 BRAIN_FILE = "./nodes_edges_filtered_six.vtp"
 
@@ -74,7 +76,9 @@ class FullGraphDynamics:
         self.region_centroids = regions_df[['centroid_x','centroid_y','centroid_z']].values
 
         # Build edge list and edge_weights
-        self.edges = [(row.src_idx, row.tgt_idx) for _, row in edges_df.iterrows()]
+        # Force integer conversion
+        self.edges = [(int(row.src_idx), int(row.tgt_idx)) for _, row in edges_df.iterrows()]
+        #self.edges = [(row.src_idx, row.tgt_idx) for _, row in edges_df.iterrows()]
         self.edge_weights = {(row.src_idx, row.tgt_idx): row.weight for _, row in edges_df.iterrows()}
 
         # Add self‑loops (optional, for recirculation)
@@ -215,6 +219,11 @@ class FullGraphDynamics:
 
         self.plucker = None
         self.spectral_gap = None
+        self.annihilator = []
+        self.support = []
+        self.prime_ideals = []
+        self.plucker_history = []      # list of (time, step_index, [q12, q13, q14, q23, q24, q34])
+        self.recompute_step_indices = []   # step numbers where A∞ was recomputed
     
     def flow_rate(self, edge, t, molecule='B'):
         heartbeat = 1 + 0.3 * np.sin(2 * np.pi * t)
@@ -491,50 +500,78 @@ class FullGraphDynamics:
         return L
     
     # Call Julia for HH2
-    def call_julia_ainf(self, current_weights):
+    def call_julia_ainf(self, current_weights, region_name=None):
         """
         current_weights : dict mapping (u,v) -> float
         Returns (m3, m4, m5, m6, HH2_dim, prime_paths, gerstenhaber, cup)
-        For now, returns dummy data.
         """
-        # Write current_weights to a temporary JSON file
+        # Build base weights dictionary
+        weights_dict = {f"{int(u)}->{int(v)}": w for (u,v), w in current_weights.items()}
+        
+        if region_name is not None:
+            # Get centroid of the affected region
+            region_idx = self.region_names.index(region_name)
+            cx, cy, cz = self.region_centroids[region_idx]
+            weights_dict["seed_region"] = region_name
+            weights_dict["centroid_x"] = cx
+            weights_dict["centroid_y"] = cy
+            weights_dict["centroid_z"] = cz
+            mode = "--full"
+            # Julia expects region name as extra argument
+            extra_args = [region_name]
+        else:
+            mode = "--ainf-only"
+            extra_args = []
+        
+        # Write weights to temporary JSON file
         weights_file = tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False)
-        json.dump({f"{u}->{v}": w for (u,v), w in current_weights.items()}, weights_file)
+        json.dump(weights_dict, weights_file)
         weights_file.close()
+        
         output_file = tempfile.NamedTemporaryFile(suffix='.json', delete=False)
         output_file.close()
 
-        # Call Julia script with these files
-        cmd = ["julia", self.julia_ainf_script, "--ainf-only", weights_file.name, output_file.name]
+        # Build command
+        cmd = ["julia", self.julia_ainf_script, mode, weights_file.name, output_file.name] + extra_args
+        #print(cmd)
         try:
             result = subprocess.run(cmd, check=True, capture_output=True, text=True)
         except subprocess.CalledProcessError as e:
+            print("Julia : ", cmd)
             print("Julia error (stderr):")
-            print(e.stderr)
+            print(result.stderr)
             print("Julia error (stdout):")
-            print(e.stdout)
+            print(result.stdout)
             raise
 
-        # Read the output JSON
+        # Read output JSON
         with open(output_file.name, 'r') as f:
             data = json.load(f)
 
+        # save json for m3,m4,m5,m6 plotting
+        permanent_file = f"ainf_export_{region_name}_{time.time():.2f}.json" if region_name else f"ainf_export_{time.time():.2f}.json"
+        #permanent_file = f"ainf_export_{region_name}_{time.time():.2f}.json" if region_name else "ainf_export_latest.json"
+        shutil.copy(output_file.name, permanent_file)
+        print(f"Saved A∞ data to {permanent_file}")
+        
         # Clean up
         os.unlink(weights_file.name)
         os.unlink(output_file.name)
 
-        # Convert the data into the expected format (dictionaries with tuple keys)
-        # The Julia script should output JSON with keys like "m3", "m4", etc.
-        # For now, assume data contains the following fields:
+        # Parse results
         m3 = self._parse_ainf_dict(data.get("m3", {}))
         m4 = self._parse_ainf_dict(data.get("m4", {}))
         m5 = self._parse_ainf_dict(data.get("m5", {}))
         m6 = self._parse_ainf_dict(data.get("m6", {}))
         HH2_dim = data.get("HH2_dim", 0)
         prime_paths = self._parse_prime_paths(data.get("prime_paths", []))
-        gerstenhaber = data.get("gerstenhaber", [])   # list of dicts
+        gerstenhaber = data.get("gerstenhaber", [])
         cup_product = data.get("cup_product", [])
-        return m3, m4, m5, m6, HH2_dim, prime_paths, gerstenhaber, cup_product
+        
+        annihilator = data.get("annihilator_infty", [])   # list of strings
+        support = data.get("support_infty", [])           # list of strings
+        prime_ideals = data.get("prime_higher_ideals", [])
+        return m3, m4, m5, m6, HH2_dim, prime_paths, gerstenhaber, cup_product, annihilator, support, prime_ideals
 
     def _parse_ainf_key(self, key_str):
         """
@@ -963,7 +1000,7 @@ class FullGraphDynamics:
             self.plucker = self.toric_projection_to_Gr24(state_wavelet)  # you need this function
             sheaf_evals = self.compute_sheaf_Laplacian_eigenvalues(t[i+1], state_wavelet)  # optional
             self.spectral_gap = sheaf_evals[1] if len(sheaf_evals) > 1 else 0.0
-
+            
             # --------------------------------------------------------------
             # 4. Toda flow update (every step)
             # --------------------------------------------------------------
@@ -1026,14 +1063,30 @@ class FullGraphDynamics:
                         self.edge_weights[(u_int, v_int)] = base * mod
                     if hasattr(self, 'sigma_scale'):
                         self.sigma_scale = 1.0 - 0.5 * prolate_ratio
-
                 if prolate_ratio > 0.8 and not locked:
                     print(f"\n*** Prolate eigenbasis lock achieved at t={t[i+1]:.2f}s ***")
                     locked = True
-                    # Rees blow‑up: inject extra norcain into free compartment of node 0
                     self.qB_free[0, i+1] += 1.0
                     print("    -> Rees blow‑up: extra norcain injected.")
+                    
+                    # --------------------------------------------------------------
+                    # Save Plucker for Associahedron Tube coupling
+                    # --------------------------------------------------------------
+                    q = self.plucker.copy() if hasattr(self, 'plucker') else None
+                    if q is not None:
+                        self.plucker_history.append((t[i+1], i+1, q.tolist()))
+                        self.recompute_step_indices.append(i+1)
 
+                    # --- Trigger Julia blow‑up diagram ---
+                    min_region_idx = np.argmin(self.C[:, i+1])
+                    region_name = self.region_names[min_region_idx]
+                    print(f"    -> Generating blow‑up diagram for region {region_name}")
+                    current_weights = {(u,v): self.edge_weights.get((u,v), 1.0) for (u,v) in self.edges}
+                    try:
+                        self.call_julia_ainf(current_weights, region_name=region_name)
+                        print(f"    -> Blow‑up diagram saved.")
+                    except Exception as e:
+                        print(f"    -> Diagram failed: {e}")
             # ------------------------------------------------------------
             # 8. Dynamic A∞ recomputation (call Julia) – unchanged
             # ------------------------------------------------------------
@@ -1055,17 +1108,108 @@ class FullGraphDynamics:
                         qB_free_v = self.qB[v_int, i]
                     mod = 1.0 + 0.1 * (qA_free_u - qB_free_v)
                     current_weights[(u_int, v_int)] = base * np.clip(mod, 0.5, 2.0)
+                # --------------------------------------------------------------
+                # Save Plucker for Associahedron Tube coupling
+                # --------------------------------------------------------------
+                q = self.plucker.copy() if hasattr(self, 'plucker') else None
+                if q is not None:
+                    self.plucker_history.append((t[i+1], i+1, q.tolist()))
+                    self.recompute_step_indices.append(i+1)
 
                 print(f"  [A∞] Recomputing A∞ structure at t={t[i+1]:.2f}s (step {i})")
                 # Uncomment when Julia function is ready:
                 (self.m3, self.m4, self.m5, self.m6, HH2_dim, prime_paths,
-                    self.gerstenhaber, self.cup_product) = self.call_julia_ainf(current_weights)
+                    self.gerstenhaber, self.cup_product, self.annihilator, self.support, self.prime_ideals) = self.call_julia_ainf(current_weights)
                 self.HH2_dim = HH2_dim
                 self.prime_paths = prime_paths
+                                
             
             # ------------------------------------------------------------
             # 9. Reverse Hironaka ancestor search if HH² spikes
             # ------------------------------------------------------------
+            # Detect HH² ascent (simpler, more robust)
+            if i > 50 and self.HH2[i+1] > np.max(self.HH2[max(0, i-200):i]) * 1.5:
+                print(f"  [Reverse Hironaka] HH² increased by >50% at t={t[i+1]:.2f}")
+            #if i > 10 and self.HH2[i+1] > 10.0 * np.median(self.HH2[max(0, i-100):i+1]):
+                #print(f"  [Reverse Hironaka] High HH² spike at t={t[i+1]:.2f}, looking for good ancestor...")
+                
+                # --- NEW: determine the region with lowest consciousness at this step ---
+                min_region_idx = np.argmin(self.C[:, i+1])        # 0..5
+                region_name = self.region_names[min_region_idx]   # e.g., "sAMY"
+                print(f"    Most affected region: {region_name}")
+                
+                # Build current edge weights (as you already do for A∞ recomputation)
+                current_weights = {}
+                for (u, v) in self.edges:
+                    base = self.edge_weights.get((u, v), 1.0)
+                    # you may modulate with free concentrations as in your existing loop
+                    current_weights[(u, v)] = base
+                
+                # --------------------------------------------------------------
+                # Save Plucker for Associahedron Tube coupling
+                # --------------------------------------------------------------
+                q = self.plucker.copy() if hasattr(self, 'plucker') else None
+                if q is not None:
+                    self.plucker_history.append((t[i+1], i+1, q.tolist()))
+                    self.recompute_step_indices.append(i+1)
+
+                # Call Julia in --full mode to generate the blow‑up diagram for that region
+                try:
+                    _ = self.call_julia_ainf(current_weights, region_name=region_name)
+                    print(f"    -> Blow‑up diagram saved for region {region_name}")
+                except Exception as e:
+                    print(f"    -> Failed to generate blow‑up diagram: {e}")
+                
+                # Then continue with the ancestor search or Rees blow‑up (inject norcain)
+                best_ancestor = None
+                for j in range(max(0, i-500), i, 50):
+                    if self.HH2[j] < 0.1 * self.HH2[i+1]:
+                        best_ancestor = j
+                        break
+                if best_ancestor is not None:
+                    # reset state to ancestor
+                    print(f"    -> Found ancestor at t={t[best_ancestor]:.2f}. Resetting to that state.")
+                    for node in range(n_nodes):
+                        # Reset all compartments (free, trap, C) to ancestor values
+                        if node in self.loopy_nodes:
+                            self.qA_free[node, i+1] = self.qA_free[node, best_ancestor]
+                            self.qA_trap[node, i+1] = self.qA_trap[node, best_ancestor]
+                            self.qB_free[node, i+1] = self.qB_free[node, best_ancestor]
+                            self.qB_trap[node, i+1] = self.qB_trap[node, best_ancestor]
+                            self.qA[node, i+1] = self.qA_free[node, i+1] + self.qA_trap[node, i+1]
+                            self.qB[node, i+1] = self.qB_free[node, i+1] + self.qB_trap[node, i+1]
+                        else:
+                            self.qA[node, i+1] = self.qA[node, best_ancestor]
+                            self.qB[node, i+1] = self.qB[node, best_ancestor]
+                        self.C[node, i+1] = self.C[node, best_ancestor]
+                else:
+                    # inject norcain (Rees blow‑up)
+                    for node in range(n_nodes):
+                        if node in self.loopy_nodes:
+                            self.qB_free[node, i+1] += 1.0
+                        else:
+                            self.qB[node, i+1] += 1.0
+                    print("    -> Rees blow‑up applied (norcain injected).")
+                    
+                    # --------------------------------------------------------------
+                    # Save Plucker for Associahedron Tube coupling
+                    # --------------------------------------------------------------
+                    q = self.plucker.copy() if hasattr(self, 'plucker') else None
+                    if q is not None:
+                        self.plucker_history.append((t[i+1], i+1, q.tolist()))
+                        self.recompute_step_indices.append(i+1)
+
+                    # --- Trigger Julia blow‑up diagram ---
+                    min_region_idx = np.argmin(self.C[:, i+1])
+                    region_name = self.region_names[min_region_idx]
+                    print(f"    -> Generating blow‑up diagram for region {region_name}")
+                    current_weights = {(u,v): self.edge_weights.get((u,v), 1.0) for (u,v) in self.edges}
+                    try:
+                        self.call_julia_ainf(current_weights, region_name=region_name)
+                        print(f"    -> Blow‑up diagram saved.")
+                    except Exception as e:
+                        print(f"    -> Diagram failed: {e}")
+            """
             if i > 10 and self.HH2[i+1] > 10.0 * np.median(self.HH2[max(0, i-100):i+1]):
                 print(f"  [Reverse Hironaka] High HH² spike at t={t[i+1]:.2f}, looking for good ancestor...")
                 best_ancestor = None
@@ -1097,6 +1241,22 @@ class FullGraphDynamics:
                         else:
                             self.qB[node, i+1] += 1.0
                     print("    -> Rees blow‑up applied.")
+            """
+            # Save Plücker trajectory
+            if self.plucker_history:
+                plucker_dict = {
+                    "times": [p[0] for p in self.plucker_history],
+                    "steps": [p[1] for p in self.plucker_history],
+                    "q12": [p[2][0] for p in self.plucker_history],
+                    "q13": [p[2][1] for p in self.plucker_history],
+                    "q14": [p[2][2] for p in self.plucker_history],
+                    "q23": [p[2][3] for p in self.plucker_history],
+                    "q24": [p[2][4] for p in self.plucker_history],
+                    "q34": [p[2][5] for p in self.plucker_history],
+                }
+                with open("plucker_trajectory.json", "w") as f:
+                    json.dump(plucker_dict, f)
+                print("Saved Plücker trajectory to plucker_trajectory.json")
 
             # ------------------------------------------------------------        
             # After all updates for time step i+1 (e.g., after history.append)
@@ -1857,8 +2017,21 @@ def create_dashboard(dynamics):
 
     # 9. Plücker 3D (same as before)
     ax9 = fig.add_subplot(6, 4, 9, projection='3d')
-    # ... (keep original code, it uses plucker which is 6‑vector)
-    # (unchanged)
+    # After creating ax9, add a wireframe sphere (approximation of the quadric)
+    u = np.linspace(0, 2 * np.pi, 30)
+    v = np.linspace(0, np.pi, 30)
+    x_sphere = 0.8 * np.outer(np.cos(u), np.sin(v))
+    y_sphere = 0.8 * np.outer(np.sin(u), np.sin(v))
+    z_sphere = 0.8 * np.outer(np.ones_like(u), np.cos(v))
+    ax9.plot_wireframe(x_sphere, y_sphere, z_sphere, color='gray', alpha=0.1, linewidth=0.5)
+    norm_time = plt.Normalize(vmin=t[0], vmax=t[-1])
+    colors_time = plt.cm.viridis(norm_time(t))
+    for i in range(len(plucker)-1):
+        ax9.plot(plucker[i:i+2,0], plucker[i:i+2,1], plucker[i:i+2,2],
+                color=colors_time[i], lw=1, alpha=0.7)
+    ax9.scatter(plucker[0,0], plucker[0,1], plucker[0,2], c='green', s=50)
+    ax9.scatter(plucker[-1,0], plucker[-1,1], plucker[-1,2], c='red', s=50)
+    ax9.set_title('9. Plücker Trajectory')
 
     # 10. Plücker relation
     ax10 = plt.subplot(6, 4, 10)
@@ -2357,20 +2530,84 @@ def plot_prime_zeta(dynamics):
     print("    ✓ Saved: prime_zeta.png")
 
 # Incremental 7 step REES Blow uo resolution
-
 class ReesBlowUp:
-    """Handles the algebraic 'inflation' at a singularity."""
     @staticmethod
     def resolve_singularity(model, t_idx):
-        # The 'Blow-up' represents adding an exceptional divisor (an extra dose/dimension)
-        # to restore the smooth trajectory.
         print(f"    [Rees Blow-up] Resolving singularity at t={model.t[t_idx]:.2f}")
-        # In the context of the simulation, this is a 'forced' recovery dose.
-        # We increase the 'norcain' concentration to provide the missing 'flow' dimension.
+        # Inject norcain (existing)
         model.qB[0, t_idx+1] += model.dose_amount * 1.5
-        # This acts as an exceptional generator that 'absorbs' the Plucker error.
-        return True
 
+        # ---- NEW: Generate blow‑up diagram for the region with lowest consciousness at this time ----
+        min_region_idx = np.argmin(model.C[:, t_idx])
+        region_name = model.region_names[min_region_idx]
+        print(f"    -> Generating blow‑up diagram for region {region_name} (most affected)")
+
+        # Build current edge weights
+        current_weights = {}
+        for (u, v) in model.edges:
+            base = model.edge_weights.get((u, v), 1.0)
+            current_weights[(u, v)] = base
+
+        # --------------------------------------------------------------
+        # Save Plücker coordinates for this blow‑up event
+        # --------------------------------------------------------------
+        if hasattr(model, 'plucker') and model.plucker is not None:
+            q = model.plucker.tolist()  # model.plucker is a numpy array
+            # Append to model's history lists
+            if not hasattr(model, 'plucker_history'):
+                model.plucker_history = []
+                model.recompute_step_indices = []
+            model.plucker_history.append((model.t[t_idx], t_idx, q))
+            model.recompute_step_indices.append(t_idx)
+
+        # Call Julia with --full mode
+        try:
+            model.call_julia_ainf(current_weights, region_name=region_name)
+            print(f"    -> Blow‑up diagram saved for region {region_name}")
+        except Exception as e:
+            print(f"    -> Failed to generate blow‑up diagram: {e}")
+
+        return True
+"""
+class ReesBlowUp:
+    # Handles the algebraic 'inflation' at a singularity.
+    @staticmethod
+    def resolve_singularity(model, t_idx):
+        print(f"    [Rees Blow-up] Resolving singularity at t={model.t[t_idx]:.2f}")
+        # Inject norcain (existing)
+        model.qB[0, t_idx+1] += model.dose_amount * 1.5
+
+        # ---- NEW: Generate blow‑up diagram for the region with lowest consciousness at this time ----
+        # Find the region with minimal consciousness at this time step
+        min_region_idx = np.argmin(model.C[:, t_idx])
+        region_name = model.region_names[min_region_idx]
+        print(f"    -> Generating blow‑up diagram for region {region_name} (most affected)")
+
+        # Build current edge weights (use free concentrations as in the A∞ recomputation loop)
+        current_weights = {}
+        for (u, v) in model.edges:
+            base = model.edge_weights.get((u, v), 1.0)
+            # Optional: modulate with free concentrations (same as in simulate)
+            # For simplicity, just use base weights
+            current_weights[(u, v)] = base
+
+        # --------------------------------------------------------------
+        # Save Plucker for Associahedron Tube coupling
+        # --------------------------------------------------------------
+        q = self.plucker.copy() if hasattr(self, 'plucker') else None
+        if q is not None:
+            self.plucker_history.append((t[i+1], i+1, q.tolist()))
+            self.recompute_step_indices.append(i+1)
+
+        # Call Julia with --full mode
+        try:
+            model.call_julia_ainf(current_weights, region_name=region_name)
+            print(f"    -> Blow‑up diagram saved for region {region_name}")
+        except Exception as e:
+            print(f"    -> Failed to generate blow‑up diagram: {e}")
+
+        return True
+"""
 class SearchNavigator:
     """
     Implements a BFS-based search for the most unstable path (highest HH2 + Plucker residue).
@@ -2875,6 +3112,32 @@ def main():
     
     # Prime zeta
     plot_prime_zeta(dynamics)
+    # After simulation, save transition times to a JSON file
+    # Save transition times
+    transition_times = dynamics.transition_times
+    if transition_times.size > 0:
+        # Convert numpy types if needed
+        transition_times = [float(t) if hasattr(t, 'item') else t for t in transition_times]
+        with open("transition_times.json", "w") as f:
+            json.dump(transition_times, f)
+        print(f"Saved transition times: {transition_times}")
+
+    # Save prime zeta values (call the method)
+    prime_zeta_vals = dynamics.compute_prime_zeta()
+    # Convert transition_times to a plain Python list
+    if hasattr(transition_times, 'tolist'):
+        transition_times_list = transition_times.tolist()
+    elif isinstance(transition_times, np.ndarray):
+        transition_times_list = transition_times.tolist()
+    else:
+        transition_times_list = list(transition_times)  # in case it's a tuple or other iterable
+
+    prime_zeta_data = {
+        "values": [{"real": z.real, "imag": z.imag} for z in prime_zeta_vals],
+        "transition_times": transition_times_list
+    }
+    with open("prime_zeta.json", "w") as f:
+        json.dump(prime_zeta_data, f)
     
     print("\n" + "="*100)
     print(" " * 40 + "ANALYSIS COMPLETE")
