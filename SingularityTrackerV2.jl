@@ -12,7 +12,7 @@
 #
 # Depends on:
 #   OnlineAssociahedronNavigatorV3.jl
-#   IharaAssociahedronBridge.jl
+#   IharaAssociahedronBridgeV2.jl
 ###############################################################
 
 module SingularityTracker
@@ -22,10 +22,10 @@ using Statistics
 using CairoMakie
 
 include("OnlineAssociahedronNavigatorV3.jl")
-include("IharaAssociahedronBridge.jl")
+include("IharaAssociahedronBridgeV2.jl")
 
 using .OnlineAssociahedronNavigatorV3
-using .IharaAssociahedronBridge
+using .IharaAssociahedronBridgeV2
 
 export TrackerResult,
        run_tracker!,
@@ -62,9 +62,22 @@ end
 ###############################################################
 # REGION EXTRACTION FROM BLOW‑UP SNAPSHOT
 ###############################################################
-
 function infer_region(snap)
-    # Try explicit region field (unlikely)
+    # Helper to find key with maximum value in a Dict
+    function argmax_dict(d)
+        isempty(d) && return nothing
+        max_val = -Inf
+        max_key = nothing
+        for (k, v) in d
+            if v > max_val
+                max_val = v
+                max_key = k
+            end
+        end
+        return max_key
+    end
+
+    # Try explicit region field
     if haskey(snap, :region)
         r = Symbol(String(snap[:region]))
         r in REGIONS && return r
@@ -83,7 +96,8 @@ function infer_region(snap)
             end
         end
         if maximum(values(counts)) > 0
-            return argmax(values(counts)) |> x -> collect(keys(counts))[x]
+            best = argmax_dict(counts)
+            best !== nothing && return best
         end
     end
 
@@ -92,7 +106,7 @@ function infer_region(snap)
         best_region = :Unknown
         best_score = -Inf
         for ideal in snap[:prime_higher_ideals]
-            sup = safe_float(ideal.get("total_support", 0.0))
+            sup = safe_float(get(ideal, "total_support", 0.0))
             for sym in ideal["closure"]
                 for r in REGIONS
                     if occursin(String(r), String(sym))
@@ -114,13 +128,14 @@ function infer_region(snap)
         counts = Dict(r => 0.0 for r in REGIONS)
         for (k, v) in pairs(snap[:m6])
             for r in REGIONS
-                if occursin(String(r), String(k))
+                if occursin(String(r), string(k))
                     counts[r] += safe_float(v)
                 end
             end
         end
         if maximum(values(counts)) > 0
-            return argmax(values(counts)) |> x -> collect(keys(counts))[x]
+            best = argmax_dict(counts)
+            best !== nothing && return best
         end
     end
 
@@ -135,6 +150,7 @@ mutable struct TrackerResult
     bridge::BridgeState
     event_times::Vector{Int}
     event_regions::Vector{Symbol}
+    event_perversities::Vector{Int}   # new
     pre_radius::Vector{Float64}
     post_radius::Vector{Float64}
     gain::Vector{Float64}
@@ -144,15 +160,15 @@ end
 ###############################################################
 # RUN TRACKER
 ###############################################################
-
 function run_tracker!(folder::String)
     B = run_bridge!(folder)
 
-    files = filter(f -> endswith(lowercase(f), ".json"), readdir(folder))
+    files = filter(f -> occursin(r"ainf_export_(?:\w+_)?\d+(?:\.\d+)?\.json", basename(f)), readdir(folder))
     sort!(files)
 
     ev_times = Int[]
     ev_regions = Symbol[]
+    event_perversities = Int[]          # new: store perversity of each blow‑up
     pre_rad = Float64[]
     post_rad = Float64[]
     gains = Float64[]
@@ -163,6 +179,18 @@ function run_tracker!(folder::String)
         if is_blowup(snap)
             push!(ev_times, i)
             push!(ev_regions, infer_region(snap))
+
+            # Compute max perversity among prime higher ideals
+            max_perv = 0
+            if haskey(snap, :prime_higher_ideals)
+                for ideal in snap[:prime_higher_ideals]
+                    perv = get(ideal, "perversity", 0)
+                    if perv > max_perv
+                        max_perv = perv
+                    end
+                end
+            end
+            push!(event_perversities, max_perv)
 
             pre = i > 1 ? B.pole_radius[i-1] : B.pole_radius[i]
             post = i < length(files) ? B.pole_radius[i+1] : B.pole_radius[i]
@@ -176,7 +204,9 @@ function run_tracker!(folder::String)
         end
     end
 
-    return TrackerResult(B, ev_times, ev_regions, pre_rad, post_rad, gains, face_changes)
+    # Return with the new field (8 arguments)
+    return TrackerResult(B, ev_times, ev_regions, event_perversities,
+                         pre_rad, post_rad, gains, face_changes)
 end
 
 ###############################################################
@@ -185,11 +215,12 @@ end
 
 function event_table(T::TrackerResult)
     println("----------------------------------------------------")
-    println("time | region | pre_radius | post_radius | gain")
+    println("time | perv | region | pre_radius | post_radius | gain")
     println("----------------------------------------------------")
     for i in eachindex(T.event_times)
         println(
             T.event_times[i], " | ",
+            T.event_perversities[i], " | ",
             T.event_regions[i], " | ",
             round(T.pre_radius[i], digits=4), " | ",
             round(T.post_radius[i], digits=4), " | ",
@@ -227,7 +258,7 @@ function plot_tracker(T::TrackerResult)
         title="Singularity Region",
         yticks = (0:6, ["Unk","CA1sp","BLA","HY","HPF","sAMY","LA"])
     )
-    scatter!(ax3, T.event_times, ys, color=:red)
+    scatter!(ax3, T.event_times, ys, color = T.event_perversities, colormap = :plasma)
 
     fig
 end

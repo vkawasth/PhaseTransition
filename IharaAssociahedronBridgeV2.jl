@@ -15,13 +15,14 @@
 #   blowup detection: prime_higher_ideals key
 ###############################################################
 
-module IharaAssociahedronBridge
+module IharaAssociahedronBridgeV2
 
 using LinearAlgebra
 using Statistics
 using JSON3
 using CairoMakie
 import Base: basename
+using LinearAlgebra: logdet
 
 # Choose your navigator version (V3 or V4). We assume V3 for compatibility.
 include("OnlineAssociahedronNavigatorV3.jl")
@@ -142,12 +143,34 @@ function effective_adjacency(snapshot)
     # ---- m6 obstruction (dictionary) ----
     if haskey(snapshot, :m6)
         for (k, v) in pairs(snapshot[:m6])
-            rs = region_hits(String(k))
+            rs = region_hits(string(k))
             w = 0.15 * log(1 + abs(safe_float(v)))
             for r in rs
                 i = idx(r)
                 if i !== nothing
                     A[i,i] += w
+                end
+            end
+        end
+    end
+
+    # ---- prime_higher_ideals: perversity contribution to diagonal ----
+    if haskey(snapshot, :prime_higher_ideals)
+        for ideal in snapshot[:prime_higher_ideals]
+            perv = get(ideal, "perversity", 0)
+            if perv <= 0
+                continue
+            end
+            # For each symbol in the closure, find its region and add a perversity‑weighted boost
+            for sym in ideal["closure"]
+                for r in REGIONS
+                    if occursin(string(r), string(sym))
+                        i = idx(r)
+                        if i !== nothing
+                            # Tune the factor (0.25) as desired
+                            A[i,i] += 0.25 * perv
+                        end
+                    end
                 end
             end
         end
@@ -179,8 +202,23 @@ mutable struct BridgeState
     nav                    # Navigator object (from run_folder!)
     pole_radius::Vector{Float64}
     pole_entropy::Vector{Float64}
+    unified_zeta_mag::Vector{Float64}   # or complex if you want phase
     flip::Vector{Int}
     stress::Vector{Float64}
+end
+
+# Unified Sheaf Zeta
+function unified_zeta_log(A, t)
+    return -real(logdet(I - t * A))
+end
+# A = Sheaf Laplacian, t = complex parameter with phase winding
+function winding_zeta(A, r, phi)
+    t = r * exp(im * phi) # Incorporating the Plücker phase
+    return 1.0 / det(I - t * A)
+end
+function winding_zeta_eigvals(λ, r, phi)
+    t = r * exp(im * phi)
+    return 1.0 / prod(1 - t * λ)
 end
 
 ###############################################################
@@ -191,31 +229,45 @@ function run_bridge!(folder::String)
     # First, run the navigator to get tubing history
     nav = run_folder!(folder)   # this will process all JSON files
 
-    files = filter(f -> endswith(lowercase(f), ".json"), readdir(folder))
+    files = filter(f -> occursin(r"ainf_export_(?:\w+_)?\d+(?:\.\d+)?\.json", basename(f)), readdir(folder))
     sort!(files)
 
-    B = BridgeState(nav, Float64[], Float64[], Int[], Float64[])
+    # Sanity check: number of files should equal length of nav.hist_tubes
+    if length(files) != length(nav.hist_tubes)
+        @warn "Mismatch: $(length(files)) JSON files vs $(length(nav.hist_tubes)) navigator tubes. Truncating to minimum."
+        n = min(length(files), length(nav.hist_tubes))
+        files = files[1:n]
+        # also need to truncate nav.hist_tubes? But nav is already computed.
+    end
+
+    B = BridgeState(nav, Float64[], Float64[], Float64[], Int[], Float64[])
 
     prev_sig = ""
 
-    for (t, f) in enumerate(files)
+    for (idx, f) in enumerate(files)
         snap = load_json(joinpath(folder, f))
         A = effective_adjacency(snap)
+
+        ρ = maximum(abs.(eigvals(A)))   # spectral radius
+        t = 0.9 / ρ                      # safe parameter
+        zeta_val = unified_zeta_log(A, t)
+        push!(B.unified_zeta_mag, abs(zeta_val))
+
         z = ihara_proxy(A)
 
         push!(B.pole_radius, z.radius)
         push!(B.pole_entropy, z.entropy)
 
         # tubing signature (uses function from navigator)
-        sig = tubing_signature(nav.hist_tubes[t])
+        sig = OnlineAssociahedronNavigatorV3.tubing_signature(nav.hist_tubes[idx])
         flip = (sig == prev_sig) ? 0 : 1
         push!(B.flip, flip)
         prev_sig = sig
 
         # stress: number of non‑zero Gerstenhaber entries + number of m6 entries
         gs = haskey(snap, :gerstenhaber) ? length(snap[:gerstenhaber]) : 0
-        m6 = haskey(snap, :m6) ? length(keys(snap[:m6])) : 0
-        push!(B.stress, gs + m6)
+        m6_count = haskey(snap, :m6) ? length(keys(snap[:m6])) : 0
+        push!(B.stress, gs + m6_count)
     end
 
     return B

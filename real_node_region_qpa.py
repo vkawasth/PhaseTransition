@@ -26,20 +26,43 @@ def generate_consolidated_qpa(node_path, edge_path):
     print(f"[+] Indexed {len(node_to_region)} nodes.")
 
     print("\n--- Phase 2: Processing Edges ---")
+    required_cols = [
+        'node1id', 'node2id', 'avgCrossSection', 'curveness', 'num_voxels'
+    ]
     consolidated_flows = {}
 
-    edge_chunks = pd.read_csv(edge_path, sep=';', usecols=['node1id', 'node2id'], chunksize=1000000)
+    edge_chunks = pd.read_csv(edge_path, sep=';', usecols=required_cols, chunksize=1000000)
 
+    # Updated Phase 2: Processing Edges with Geometric Impedance
     for chunk in edge_chunks:
         r1 = chunk['node1id'].map(node_to_region)
         r2 = chunk['node2id'].map(node_to_region)
 
         mask = r1.notna() & r2.notna() & (r1 != r2)
-        df = pd.DataFrame({'src': r1[mask], 'tgt': r2[mask]})
+    
+        # Calculate physical capacity modulated by curveness
+        # Capacity = (CrossSection * Voxels) / Curveness
+        df = pd.DataFrame({
+            'src': r1[mask],
+            'tgt': r2[mask],
+            'geo_weight': (chunk['avgCrossSection'][mask] * chunk['num_voxels'][mask]) / chunk['curveness'][mask]
+        })
 
-        counts = df.groupby(['src', 'tgt']).size()
-        for (src, tgt), count in counts.items():
-            consolidated_flows[(src, tgt)] = consolidated_flows.get((src, tgt), 0) + count
+        # Aggregate geometric flow
+        weights = df.groupby(['src', 'tgt'])['geo_weight'].sum()
+        for (src, tgt), val in weights.items():
+            consolidated_flows[(src, tgt)] = consolidated_flows.get((src, tgt), 0) + val
+
+    #for chunk in edge_chunks:
+    #    r1 = chunk['node1id'].map(node_to_region)
+    #    r2 = chunk['node2id'].map(node_to_region)
+
+    #    mask = r1.notna() & r2.notna() & (r1 != r2)
+    #    df = pd.DataFrame({'src': r1[mask], 'tgt': r2[mask]})
+
+    #    counts = df.groupby(['src', 'tgt']).size()
+    #    for (src, tgt), count in counts.items():
+    #        consolidated_flows[(src, tgt)] = consolidated_flows.get((src, tgt), 0) + count
 
     print("\n--- Phase 3: Build Arrows ---")
 
@@ -61,15 +84,28 @@ def generate_consolidated_qpa(node_path, edge_path):
 
             wij = consolidated_flows[(i, j)]
             wjk = consolidated_flows[(j, k)]
-            wik = consolidated_flows.get((i, k), 0)
+            wik = consolidated_flows.get((i, k), 1.0) # Anchor Edge
+            
+            # The associative coefficient C satisfies: f_ij * f_jk = C * f_ik
+            # This ensures (f_ij * f_jk) * f_kl = f_ij * (f_jk * f_kl)
+            coeff = (wij * wjk) / wik
 
-            delta = wij * wjk - wik
+            rel = f"f_{i}_{j}*f_{j}_{k} - {coeff}*f_{i}_{k}"
+            rels.append(rel)
+            
+            # Debug the scale of the coefficient for your phase transition analysis
+            if abs(coeff) > 1000:
+                print(f"!!! Large curvature detected at {i}->{j}->{k}: coeff={coeff}")
+            else:
+                print(f"Relation: {rel}")
+
+            #delta = wij * wjk - wik
 
             # Threshold to avoid noise
-            if abs(delta) > 10:
-                rel = f"f_{i}_{j}*f_{j}_{k} - {delta % 101}*f_{i}_{k}"
-                rels.append(rel)
-                print(f"Relation: {rel}")
+            #if abs(delta) > 10:
+            #    rel = f"f_{i}_{j}*f_{j}_{k} - {delta % 101}*f_{i}_{k}"
+            #    rels.append(rel)
+            #    print(f"Relation: {rel}")
 
     # -----------------------------
     # NEW: Loop relations (2-cycles)

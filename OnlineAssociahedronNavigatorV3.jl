@@ -22,7 +22,8 @@ export Navigator,
        run_folder!,
        plot_scores,
        plot_transport,
-       plot_tubes
+       plot_tubes,
+       tubing_signature
 
 ###############################################################
 # REGIONS & SUPPORT GRAPH
@@ -176,7 +177,8 @@ function score_tube(snapshot, τ)
                      end
                 reg !== nothing && reg in τ
             end, closure)
-                s += ideal["total_support"]
+                perv = get(ideal, "perversity", 0)
+                s += (perv + 1) * ideal["total_support"]
             end
         end
     end
@@ -398,6 +400,7 @@ function run_folder!(folder)
         end
         println("  score = ", round(S.hist_score[end], digits=3))
         println("  dominant = ", REGIONS[S.hist_dom[end]])
+        println("  best tubing = ", S.hist_tubes[end])
         println()
     end
     return S

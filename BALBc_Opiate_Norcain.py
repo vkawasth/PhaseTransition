@@ -224,6 +224,16 @@ class FullGraphDynamics:
         self.prime_ideals = []
         self.plucker_history = []      # list of (time, step_index, [q12, q13, q14, q23, q24, q34])
         self.recompute_step_indices = []   # step numbers where A∞ was recomputed
+        self.prime_zeta_values = []
+        self.prime_zeta_times = []
+        self.plucker_zeta_times = []    # dense time stamps
+        self.plucker_zeta_mags = []     # dense magnitudes
+        self.json_export_step_indices = []   # one entry per JSON export, in order
+
+    def compute_single_zeta(self, t, plucker_vec):
+        """Compute a simple zeta magnitude from the current Plücker vector."""
+        # Use the magnitude of the Plücker vector as a proxy
+        return np.linalg.norm(plucker_vec)
     
     def flow_rate(self, edge, t, molecule='B'):
         heartbeat = 1 + 0.3 * np.sin(2 * np.pi * t)
@@ -500,16 +510,15 @@ class FullGraphDynamics:
         return L
     
     # Call Julia for HH2
-    def call_julia_ainf(self, current_weights, region_name=None):
+    def call_julia_ainf(self, current_weights, region_name=None, step_index=None):
         """
         current_weights : dict mapping (u,v) -> float
-        Returns (m3, m4, m5, m6, HH2_dim, prime_paths, gerstenhaber, cup)
+        Returns (m3, m4, m5, m6, HH2_dim, prime_paths, gerstenhaber, cup_product, annihilator, support, prime_ideals)
         """
         # Build base weights dictionary
         weights_dict = {f"{int(u)}->{int(v)}": w for (u,v), w in current_weights.items()}
         
         if region_name is not None:
-            # Get centroid of the affected region
             region_idx = self.region_names.index(region_name)
             cx, cy, cz = self.region_centroids[region_idx]
             weights_dict["seed_region"] = region_name
@@ -517,7 +526,6 @@ class FullGraphDynamics:
             weights_dict["centroid_y"] = cy
             weights_dict["centroid_z"] = cz
             mode = "--full"
-            # Julia expects region name as extra argument
             extra_args = [region_name]
         else:
             mode = "--ainf-only"
@@ -533,28 +541,30 @@ class FullGraphDynamics:
 
         # Build command
         cmd = ["julia", self.julia_ainf_script, mode, weights_file.name, output_file.name] + extra_args
-        #print(cmd)
         try:
             result = subprocess.run(cmd, check=True, capture_output=True, text=True)
         except subprocess.CalledProcessError as e:
-            print("Julia : ", cmd)
+            print("Julia command:", cmd)
             print("Julia error (stderr):")
-            print(result.stderr)
+            print(e.stderr)
             print("Julia error (stdout):")
-            print(result.stdout)
+            print(e.stdout)
             raise
 
         # Read output JSON
         with open(output_file.name, 'r') as f:
             data = json.load(f)
 
-        # save json for m3,m4,m5,m6 plotting
+        # Save a permanent copy (for debugging/plots)
         permanent_file = f"ainf_export_{region_name}_{time.time():.2f}.json" if region_name else f"ainf_export_{time.time():.2f}.json"
-        #permanent_file = f"ainf_export_{region_name}_{time.time():.2f}.json" if region_name else "ainf_export_latest.json"
         shutil.copy(output_file.name, permanent_file)
         print(f"Saved A∞ data to {permanent_file}")
-        
-        # Clean up
+
+        # Record step index for alignment (must be done after successful read)
+        if step_index is not None:
+            self.json_export_step_indices.append(step_index)
+
+        # Clean up temporary files
         os.unlink(weights_file.name)
         os.unlink(output_file.name)
 
@@ -568,11 +578,12 @@ class FullGraphDynamics:
         gerstenhaber = data.get("gerstenhaber", [])
         cup_product = data.get("cup_product", [])
         
-        annihilator = data.get("annihilator_infty", [])   # list of strings
-        support = data.get("support_infty", [])           # list of strings
+        annihilator = data.get("annihilator_infty", [])
+        support = data.get("support_infty", [])
         prime_ideals = data.get("prime_higher_ideals", [])
+        
         return m3, m4, m5, m6, HH2_dim, prime_paths, gerstenhaber, cup_product, annihilator, support, prime_ideals
-
+    
     def _parse_ainf_key(self, key_str):
         """
         Convert a string like '(:f_CA1sp_HPF, :f_HPF_BLA, :e_BLA)' into a tuple
@@ -634,7 +645,7 @@ class FullGraphDynamics:
         L_new = 0.5 * (L_new + L_new.T)
         return L_new
     
-    def toric_projection_to_Gr24(self, state):
+    def toric_projection_to_Gr24(self, state, return_norm=False):
         """
         state : array of 6 floats [a, b, w1, w2, phi, kappa]
         Returns normalized Plücker coordinates (6‑vector) on Gr(2,4).
@@ -651,9 +662,13 @@ class FullGraphDynamics:
         q34 = phi * kappa * denom
         q = np.array([q12, q13, q14, q23, q24, q34])
         norm = np.linalg.norm(q)
-        if norm > 0:
-            q /= norm
-        return q
+        print(f"Plucker Zeta raw norm = {norm}")
+        if return_norm:
+            return q, norm
+        else:
+            if norm > 0:
+                q /= norm
+            return q
     
     def compute_sheaf_Laplacian_eigenvalues(self, t, state):
         return self._sheafq.eigenvalues(t, state)
@@ -997,7 +1012,12 @@ class FullGraphDynamics:
                 np.arctan2(qB_rep - qA_rep, qA_rep + qB_rep),
                 qA_rep * qB_rep / ((qA_rep + qB_rep)**2 + 1e-8)
             ])
-            self.plucker = self.toric_projection_to_Gr24(state_wavelet)  # you need this function
+            self.plucker, plucker_norm = self.toric_projection_to_Gr24(state_wavelet, return_norm=True)  # you need this function
+            # After self.plucker = self.toric_projection_to_Gr24(state_wavelet) collect plucker zetas
+            zeta_mag = np.linalg.norm(self.plucker)
+            self.plucker_zeta_times.append(t[i+1])
+            self.plucker_zeta_mags.append(plucker_norm) # saving zeta_mag will store 1s
+
             sheaf_evals = self.compute_sheaf_Laplacian_eigenvalues(t[i+1], state_wavelet)  # optional
             self.spectral_gap = sheaf_evals[1] if len(sheaf_evals) > 1 else 0.0
             
@@ -1076,6 +1096,10 @@ class FullGraphDynamics:
                     if q is not None:
                         self.plucker_history.append((t[i+1], i+1, q.tolist()))
                         self.recompute_step_indices.append(i+1)
+                        zeta_mag = self.compute_single_zeta(t[i+1], q)
+                        # Append to prime_zeta lists (you may need to initialize them earlier)
+                        self.prime_zeta_values.append(zeta_mag)
+                        self.prime_zeta_times.append(t[i+1])
 
                     # --- Trigger Julia blow‑up diagram ---
                     min_region_idx = np.argmin(self.C[:, i+1])
@@ -1083,7 +1107,7 @@ class FullGraphDynamics:
                     print(f"    -> Generating blow‑up diagram for region {region_name}")
                     current_weights = {(u,v): self.edge_weights.get((u,v), 1.0) for (u,v) in self.edges}
                     try:
-                        self.call_julia_ainf(current_weights, region_name=region_name)
+                        self.call_julia_ainf(current_weights, region_name=region_name,  step_index=i+1)
                         print(f"    -> Blow‑up diagram saved.")
                     except Exception as e:
                         print(f"    -> Diagram failed: {e}")
@@ -1115,11 +1139,15 @@ class FullGraphDynamics:
                 if q is not None:
                     self.plucker_history.append((t[i+1], i+1, q.tolist()))
                     self.recompute_step_indices.append(i+1)
+                    zeta_mag = self.compute_single_zeta(t[i+1], q)
+                    # Append to prime_zeta lists (you may need to initialize them earlier)
+                    self.prime_zeta_values.append(zeta_mag)
+                    self.prime_zeta_times.append(t[i+1])
 
                 print(f"  [A∞] Recomputing A∞ structure at t={t[i+1]:.2f}s (step {i})")
                 # Uncomment when Julia function is ready:
                 (self.m3, self.m4, self.m5, self.m6, HH2_dim, prime_paths,
-                    self.gerstenhaber, self.cup_product, self.annihilator, self.support, self.prime_ideals) = self.call_julia_ainf(current_weights)
+                    self.gerstenhaber, self.cup_product, self.annihilator, self.support, self.prime_ideals) = self.call_julia_ainf(current_weights,  step_index=i+1)
                 self.HH2_dim = HH2_dim
                 self.prime_paths = prime_paths
                                 
@@ -1152,10 +1180,14 @@ class FullGraphDynamics:
                 if q is not None:
                     self.plucker_history.append((t[i+1], i+1, q.tolist()))
                     self.recompute_step_indices.append(i+1)
+                    zeta_mag = self.compute_single_zeta(t[i+1], q)
+                    # Append to prime_zeta lists (you may need to initialize them earlier)
+                    self.prime_zeta_values.append(zeta_mag)
+                    self.prime_zeta_times.append(t[i+1])
 
                 # Call Julia in --full mode to generate the blow‑up diagram for that region
                 try:
-                    _ = self.call_julia_ainf(current_weights, region_name=region_name)
+                    _ = self.call_julia_ainf(current_weights, region_name=region_name,  step_index=i+1)
                     print(f"    -> Blow‑up diagram saved for region {region_name}")
                 except Exception as e:
                     print(f"    -> Failed to generate blow‑up diagram: {e}")
@@ -1198,6 +1230,10 @@ class FullGraphDynamics:
                     if q is not None:
                         self.plucker_history.append((t[i+1], i+1, q.tolist()))
                         self.recompute_step_indices.append(i+1)
+                        zeta_mag = self.compute_single_zeta(t[i+1], q)
+                        # Append to prime_zeta lists (you may need to initialize them earlier)
+                        self.prime_zeta_values.append(zeta_mag)
+                        self.prime_zeta_times.append(t[i+1])
 
                     # --- Trigger Julia blow‑up diagram ---
                     min_region_idx = np.argmin(self.C[:, i+1])
@@ -1205,59 +1241,12 @@ class FullGraphDynamics:
                     print(f"    -> Generating blow‑up diagram for region {region_name}")
                     current_weights = {(u,v): self.edge_weights.get((u,v), 1.0) for (u,v) in self.edges}
                     try:
-                        self.call_julia_ainf(current_weights, region_name=region_name)
+                        self.call_julia_ainf(current_weights, region_name=region_name,  step_index=i+1)
                         print(f"    -> Blow‑up diagram saved.")
                     except Exception as e:
                         print(f"    -> Diagram failed: {e}")
-            """
-            if i > 10 and self.HH2[i+1] > 10.0 * np.median(self.HH2[max(0, i-100):i+1]):
-                print(f"  [Reverse Hironaka] High HH² spike at t={t[i+1]:.2f}, looking for good ancestor...")
-                best_ancestor = None
-                for j in range(max(0, i-500), i, 50):
-                    if self.HH2[j] < 0.1 * self.HH2[i+1]:
-                        best_ancestor = j
-                        break
-                if best_ancestor is not None:
-                    print(f"    -> Found ancestor at t={t[best_ancestor]:.2f}. Resetting to that state.")
-                    for node in range(n_nodes):
-                        # Reset all compartments (free, trap, C) to ancestor values
-                        if node in self.loopy_nodes:
-                            self.qA_free[node, i+1] = self.qA_free[node, best_ancestor]
-                            self.qA_trap[node, i+1] = self.qA_trap[node, best_ancestor]
-                            self.qB_free[node, i+1] = self.qB_free[node, best_ancestor]
-                            self.qB_trap[node, i+1] = self.qB_trap[node, best_ancestor]
-                            self.qA[node, i+1] = self.qA_free[node, i+1] + self.qA_trap[node, i+1]
-                            self.qB[node, i+1] = self.qB_free[node, i+1] + self.qB_trap[node, i+1]
-                        else:
-                            self.qA[node, i+1] = self.qA[node, best_ancestor]
-                            self.qB[node, i+1] = self.qB[node, best_ancestor]
-                        self.C[node, i+1] = self.C[node, best_ancestor]
-                else:
-                    print("    -> No good ancestor found. Attempting Rees blow‑up.")
-                    # Inject norcain into free compartment of all nodes (surgery)
-                    for node in range(n_nodes):
-                        if node in self.loopy_nodes:
-                            self.qB_free[node, i+1] += 1.0
-                        else:
-                            self.qB[node, i+1] += 1.0
-                    print("    -> Rees blow‑up applied.")
-            """
-            # Save Plücker trajectory
-            if self.plucker_history:
-                plucker_dict = {
-                    "times": [p[0] for p in self.plucker_history],
-                    "steps": [p[1] for p in self.plucker_history],
-                    "q12": [p[2][0] for p in self.plucker_history],
-                    "q13": [p[2][1] for p in self.plucker_history],
-                    "q14": [p[2][2] for p in self.plucker_history],
-                    "q23": [p[2][3] for p in self.plucker_history],
-                    "q24": [p[2][4] for p in self.plucker_history],
-                    "q34": [p[2][5] for p in self.plucker_history],
-                }
-                with open("plucker_trajectory.json", "w") as f:
-                    json.dump(plucker_dict, f)
-                print("Saved Plücker trajectory to plucker_trajectory.json")
-
+            
+            
             # ------------------------------------------------------------        
             # After all updates for time step i+1 (e.g., after history.append)
             # ------------------------------------------------------------
@@ -1268,6 +1257,7 @@ class FullGraphDynamics:
         # After loop, compute Plücker trajectory and phase transitions
         self.plucker = self.compute_plucker_trajectory()
         self.detect_phase_transitions()
+        
         return self.t, self.C, self.qA, self.qB, self.HH1, self.HH2
     
     
@@ -2560,9 +2550,19 @@ class ReesBlowUp:
             model.plucker_history.append((model.t[t_idx], t_idx, q))
             model.recompute_step_indices.append(t_idx)
 
+            # --- Compute and record Plücker zeta magnitude at blow‑up ---
+            # Use the L2 norm of the Plücker vector as a simple zeta proxy.
+            # (You can replace with a more sophisticated measure if you have compute_single_zeta defined.)
+            zeta_mag = np.linalg.norm(model.plucker)
+            if not hasattr(model, 'prime_zeta_values'):
+                model.prime_zeta_values = []
+                model.prime_zeta_times = []
+            model.prime_zeta_values.append(zeta_mag)
+            model.prime_zeta_times.append(model.t[t_idx])
+
         # Call Julia with --full mode
         try:
-            model.call_julia_ainf(current_weights, region_name=region_name)
+            model.call_julia_ainf(current_weights, region_name=region_name,  step_index=model.t_idx)
             print(f"    -> Blow‑up diagram saved for region {region_name}")
         except Exception as e:
             print(f"    -> Failed to generate blow‑up diagram: {e}")
@@ -2835,6 +2835,40 @@ def main():
     peak_idx = best_path[np.argmax(dynamics.HH2[best_path])]
     ReesBlowUp.resolve_singularity(dynamics, peak_idx)
 
+    # Save Plücker trajectory
+    # After ReesBlowUp.resolve_singularity(dynamics, peak_idx)
+    if dynamics.plucker_history:
+        plucker_dict = {
+            "times": [float(p[0]) for p in dynamics.plucker_history],
+            "steps": [int(p[1]) for p in dynamics.plucker_history],
+            "q12": [float(np.array(p[2]).flatten()[0]) for p in dynamics.plucker_history],
+            "q13": [float(np.array(p[2]).flatten()[1]) for p in dynamics.plucker_history],
+            "q14": [float(np.array(p[2]).flatten()[2]) for p in dynamics.plucker_history],
+            "q23": [float(np.array(p[2]).flatten()[3]) for p in dynamics.plucker_history],
+            "q24": [float(np.array(p[2]).flatten()[4]) for p in dynamics.plucker_history],
+            "q34": [float(np.array(p[2]).flatten()[5]) for p in dynamics.plucker_history],
+        }
+        with open("plucker_trajectory.json", "w") as f:
+            json.dump(plucker_dict, f)
+        print("Saved Plücker trajectory to plucker_trajectory.json")
+
+    if hasattr(dynamics, 'prime_zeta_values') and dynamics.prime_zeta_values:
+        prime_zeta_data = {
+            "values": [{"real": float(z), "imag": 0.0} for z in dynamics.prime_zeta_values],
+            "transition_times": [float(t) for t in dynamics.prime_zeta_times]
+        }
+        with open("prime_zeta.json", "w") as f:
+            json.dump(prime_zeta_data, f)
+        print("Saved prime_zeta.json from blow‑up events ({} entries).".format(len(dynamics.prime_zeta_values)))
+
+    dense_zeta_data = {
+        "times": [float(t) for t in dynamics.plucker_zeta_times],
+        "magnitudes": [float(m) for m in dynamics.plucker_zeta_mags],
+        "snapshot_indices": [int(idx) for idx in dynamics.json_export_step_indices]
+    }
+    with open("plucker_zeta_dense.json", "w") as f:
+        json.dump(dense_zeta_data, f)
+    print("Saved dense Plücker zeta time series to plucker_zeta_dense.json")
     # Save result
     plot_unstable_paths(dynamics, nav, best_path)
 
@@ -3123,21 +3157,29 @@ def main():
         print(f"Saved transition times: {transition_times}")
 
     # Save prime zeta values (call the method)
-    prime_zeta_vals = dynamics.compute_prime_zeta()
-    # Convert transition_times to a plain Python list
-    if hasattr(transition_times, 'tolist'):
-        transition_times_list = transition_times.tolist()
-    elif isinstance(transition_times, np.ndarray):
-        transition_times_list = transition_times.tolist()
+    if hasattr(dynamics, 'prime_zeta_values') and dynamics.prime_zeta_values:
+        prime_zeta_data = {
+            "values": [{"real": float(z), "imag": 0.0} for z in dynamics.prime_zeta_values],
+            "transition_times": [float(t) for t in dynamics.prime_zeta_times]
+        }
+        with open("prime_zeta.json", "w") as f:
+            json.dump(prime_zeta_data, f)
+        print("Saved prime_zeta.json from blow‑up events ({} entries).".format(len(dynamics.prime_zeta_values)))
     else:
-        transition_times_list = list(transition_times)  # in case it's a tuple or other iterable
-
-    prime_zeta_data = {
-        "values": [{"real": z.real, "imag": z.imag} for z in prime_zeta_vals],
-        "transition_times": transition_times_list
-    }
-    with open("prime_zeta.json", "w") as f:
-        json.dump(prime_zeta_data, f)
+        # fallback to consciousness transitions
+        prime_zeta_vals = dynamics.compute_prime_zeta()
+        transition_times = dynamics.transition_times
+        if transition_times.size > 0:
+            transition_times_list = transition_times.tolist() if hasattr(transition_times, 'tolist') else list(transition_times)
+            prime_zeta_data = {
+                "values": [{"real": z.real, "imag": z.imag} for z in prime_zeta_vals],
+                "transition_times": transition_times_list
+            }
+            with open("prime_zeta.json", "w") as f:
+                json.dump(prime_zeta_data, f)
+            print("Saved prime_zeta.json from consciousness transitions.")
+        else:
+            print("No prime zeta data to save (neither blow‑up nor consciousness transitions).")
     
     print("\n" + "="*100)
     print(" " * 40 + "ANALYSIS COMPLETE")

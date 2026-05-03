@@ -205,7 +205,8 @@ end
 
 function run_blowup!(folder::String)
 
-    files = filter(f->endswith(lowercase(f),".json"), readdir(folder))
+    # Only ainf_export JSON files
+    files = filter(f -> occursin(r"ainf_export_(?:\w+_)?\d+(?:\.\d+)?\.json", basename(f)), readdir(folder))
     sort!(files)
 
     names = [
