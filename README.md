@@ -229,6 +229,11 @@ Tube flips/Support on Associahedron wrt to Monodromy.
 <img width="1800" height="800" alt="transport" src="https://github.com/user-attachments/assets/393255c7-87ff-4b02-a9e9-e3c423fc7b5e" />
 <img width="1800" height="900" alt="tube_participation" src="https://github.com/user-attachments/assets/ba433836-99c2-461b-b012-313595565f30" />
 
+MAGMA ALgebraic computations amoung regions adding PAL, LSX and PAL+LSX
+
+<img width="804" height="991" alt="Screenshot 2026-05-09 at 3 50 10 PM" src="https://github.com/user-attachments/assets/bd1633b0-8c55-4538-b199-624a76425cde" />
+
+
 
 
 
