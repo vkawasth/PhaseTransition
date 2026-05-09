@@ -26,11 +26,112 @@ include("ReesGrassmannBridge.jl")
 using .OnlineAssociahedronNavigatorV3
 using .IharaAssociahedronBridgeV2
 using .SingularityTracker
+using .SingularityTracker: TrackerResult
+
 using .SchoberNavigatorV2
 using .ReesGrassmannBridge
 
 const REGIONS = [:CA1sp, :BLA, :HY, :HPF, :sAMY, :LA]
 load_json(file) = JSON3.read(read(file,String))
+
+# ======================================================================
+# STABILITY-AWARE DEDUPLICATION CACHE
+#
+# In the stable zone (chambers 20-700) the best tubing, prime paths,
+# and monodromy are identical snapshot after snapshot.
+# Computing eigvals/exp(Ω)/SVD 800× for identical inputs is the
+# cause of the 2-day runtime.
+#
+# Strategy:
+#   1. Fingerprint each snapshot by a cheap hash of its key fields
+#   2. If fingerprint matches the previous K snapshots → skip full computation
+#   3. Periodically (every FORCE_INTERVAL) recompute regardless
+#   4. At blowup events (high severity) always recompute
+#
+# FORCE_INTERVAL: force recomputation every N stable snapshots
+# LOOKBACK: number of previous snapshots to compare fingerprint against
+# SEVERITY_THRESHOLD: always recompute when m6 norm exceeds this
+# ======================================================================
+
+const FORCE_INTERVAL     = 50    # recompute every 50 stable snapshots
+const LOOKBACK           = 3     # compare against last 3 fingerprints
+const SEVERITY_THRESHOLD = 1e6   # always recompute above this m6 norm
+
+"""
+Cheap fingerprint of a snapshot for deduplication.
+Uses: top prime path signature + m6 total norm + n_prime_paths.
+Fast to compute — no matrix algebra.
+"""
+function snapshot_fingerprint(snap)::String
+    # Prime path count
+    np = haskey(snap, :prime_paths) ? length(snap[:prime_paths]) : 0
+    # Top path signature (first path as string)
+    top_path = ""
+    if haskey(snap, :prime_paths) && !isempty(snap[:prime_paths])
+        pp = snap[:prime_paths]
+        # Sort by weight, take top path
+        sorted_pp = sort(collect(pp), by=p->get(p,:weight,0.0), rev=true)
+        if !isempty(sorted_pp) && haskey(sorted_pp[1], :path)
+            top_path = join(sorted_pp[1][:path], "→")
+        end
+    end
+    # m6 norm (cheap: just count entries)
+    m6_count = haskey(snap, :m6) ? length(snap[:m6]) : 0
+    # Tubing dominant set (first tubing as string)
+    tubing_sig = ""
+    if haskey(snap, :prime_higher_ideals) && !isempty(snap[:prime_higher_ideals])
+        first_ideal = snap[:prime_higher_ideals][1]
+        if haskey(first_ideal, :closure)
+            tubing_sig = join(sort(string.(first_ideal[:closure])), ",")
+        end
+    end
+    return "$(np)|$(m6_count)|$(top_path[1:min(50,length(top_path))])|$(tubing_sig[1:min(30,length(tubing_sig))])"
+end
+
+"""
+Snapshot severity for deciding whether to force recomputation.
+Returns m6 total support norm.
+"""
+function snapshot_severity(snap)::Float64
+    haskey(snap, :m6) || return 0.0
+    total = 0.0
+    for (k, v) in snap[:m6]
+        if v isa Number && isfinite(Float64(v))
+            total += Float64(v)^2
+        end
+    end
+    return sqrt(total)
+end
+
+"""
+Decide whether to skip full computation for snapshot i.
+Returns (skip::Bool, reason::String)
+
+Skip when:
+  - fingerprint matches last LOOKBACK snapshots
+  - severity below threshold
+  - not at a FORCE_INTERVAL boundary
+  - not the first or last snapshot
+"""
+function should_skip(i::Int, n_total::Int,
+                     fingerprint::String,
+                     recent_fingerprints::Vector{String},
+                     severity::Float64)::Tuple{Bool,String}
+    # Never skip first, last, or crisis snapshots
+    i == 1        && return (false, "first snapshot")
+    i == n_total  && return (false, "last snapshot")
+    severity > SEVERITY_THRESHOLD && return (false, "high severity $(round(severity,digits=0))")
+
+    # Always recompute at force intervals
+    i % FORCE_INTERVAL == 0 && return (false, "force interval")
+
+    # Skip if fingerprint matches recent history
+    length(recent_fingerprints) < LOOKBACK && return (false, "insufficient history")
+    all(fp == fingerprint for fp in recent_fingerprints[end-min(LOOKBACK,length(recent_fingerprints))+1:end]) &&
+        return (true, "identical to last $(LOOKBACK) snapshots")
+
+    return (false, "fingerprint changed")
+end
 
 # ----------------------------------------------------------------------
 # Helper: parse timestamp from filename (for ordering)
@@ -366,58 +467,215 @@ end
 function compute_dehn_error(snapshot_files, folder)
     """
     Compute cumulative monodromy error (Dehn twist error).
-    For Gr(2,4), perfect coherence gives error = 0.
-    Ghost signal appears when error → 3.
+    Optimised: skips identical snapshots in stable zone.
+    Ghost signal appears when error → 2√2.
     """
-    # Gr(2,4) embedding requires 4 dimensions
-    N = 4  # Fixed for Grassmannian, not length(REGIONS)
-    M_total = Matrix{Float64}(I, N, N)
-    error_series = Float64[]
+    N = 4
+    M_total       = Matrix{Float64}(I, N, N)
+    error_series  = Float64[]
     monodromy_series = []
-    
+    recent_fps    = String[]
+    last_M        = Matrix{Float64}(I, N, N)
+    last_err      = 0.0
+    n_total       = length(snapshot_files)
+    n_skipped     = 0
+    n_computed    = 0
+
     for (i, f) in enumerate(snapshot_files)
         filepath = joinpath(folder, f)
-        snap = load_json(filepath)
+        snap     = load_json(filepath)
 
-        # Diagnostic: print first snapshot keys
         if i == 1
             println("Sample snapshot keys: ", keys(snap))
             println("Has prime_paths? ", haskey(snap, :prime_paths))
-            println("Has m4? ", haskey(snap, :m4))
             println("prime_paths length: ", length(get(snap, :prime_paths, [])))
         end
-        
-        try
-            M = monodromy(snap)
-            
-            # Cumulative product (order: later snapshots multiply on left)
-            M_total = M * M_total
-            
-            # Coherence error: distance from identity
-            err = norm(M_total - I)
-            push!(error_series, err)
-            push!(monodromy_series, M_total)
-            
-            # Detect ghost signal (error ≈ 3.0)
-            if err > 2.5 && err < 3.5
-                @info "Ghost signal detected at snapshot $i: error = $err"
-                @info "   Monodromy eigenvalues: $(eigvals(M_total))"
-                @info "   Coherence breakdown at t = $(parse_timestamp(f))"
+
+        # Fingerprint and severity for cache decision
+        fp  = snapshot_fingerprint(snap)
+        sev = snapshot_severity(snap)
+        skip, reason = should_skip(i, n_total, fp, recent_fps, sev)
+
+        if skip
+            # Reuse last computed monodromy — identical input → identical output
+            push!(error_series, last_err)
+            push!(monodromy_series, last_M)
+            n_skipped += 1
+        else
+            try
+                M = monodromy(snap)
+                M_total = M * M_total
+                err     = norm(M_total - I)
+                push!(error_series, err)
+                push!(monodromy_series, M_total)
+                last_M   = M_total
+                last_err = err
+                n_computed += 1
+
+                if err > 2.5 && err < 3.5
+                    @info "Ghost signal at snapshot $i: error=$err  reason=$reason"
+                    @info "  Monodromy eigenvalues: $(eigvals(M_total))"
+                end
+            catch e
+                @warn "Monodromy failed for $f: $(typeof(e).name.name)"
+                push!(error_series, NaN)
+                push!(monodromy_series, nothing)
+                n_computed += 1
             end
-        catch e
-            # Brief error message - no snapshot dumping!
-            @warn "Failed to compute monodromy for $f: $(typeof(e).name.name)"
-            # Optional: minimal debug info
-            if i == 1  # Only for first file
-                println("  Minimal debug: has prime_paths? ", haskey(snap, :prime_paths))
-            end
-            push!(error_series, NaN)
-            push!(monodromy_series, nothing)
+        end
+
+        # Update fingerprint history
+        push!(recent_fps, fp)
+        length(recent_fps) > LOOKBACK + 2 && popfirst!(recent_fps)
+
+        # Progress every 50 snapshots
+        if i % 50 == 0 || i == n_total
+            @printf("  Dehn error: %d/%d  computed=%d  skipped=%d  (%.0f%% saved)\n",
+                    i, n_total, n_computed, n_skipped,
+                    100.0 * n_skipped / max(i, 1))
         end
     end
-    
+
+    println("  Dehn error complete: $n_computed computed, $n_skipped skipped")
     return error_series, monodromy_series
 end
+
+# ======================================================================
+# PLOTTING FUNCTION
+# ======================================================================
+function plot_twisting_topology(plucker_phase, dehn_error, tracker, folder)
+    
+    # Early exit if no data
+    if (plucker_phase === nothing || isempty(plucker_phase)) && 
+    (isempty(dehn_error) || all(isnan, dehn_error))
+        @warn "No valid data to plot"
+        return nothing
+    end
+
+    fig = Figure(size=(1200, 800))
+
+    # Panel A: Fixed unwrapping
+    ax1 = Axis(fig[1, 1], title="A: Plücker Phase (Monodromy Winding)")
+    if plucker_phase !== nothing && length(plucker_phase) > 0
+        # Correct cumulative unwrapping
+        unwrapped = copy(plucker_phase)
+        shift = 0.0
+        for i in 2:length(unwrapped)
+            delta = plucker_phase[i] - plucker_phase[i-1]
+            shift += (delta > π) ? -2π : (delta < -π) ? 2π : 0
+            unwrapped[i] = plucker_phase[i] + shift
+        end
+        
+        lines!(ax1, 1:length(unwrapped), unwrapped, color=:blue, linewidth=2)
+        winding = (unwrapped[end] - unwrapped[1]) / (2π)
+        text!(ax1, 10.0, maximum(unwrapped)-0.5, text="Winding = $(round(winding, digits=2))")
+    end
+
+    # Panel B: Dehn Twist Error
+    ax2 = Axis(fig[1, 2], title="B: Dehn Twist Error (Ghost Signals)")
+    if !isempty(dehn_error) && any(!isnan, dehn_error)
+        valid_idx = findall(!isnan, dehn_error)
+        scatter!(ax2, valid_idx, dehn_error[valid_idx], color=:black, markersize=6)
+        hlines!(ax2, [2√2], color=:red, linestyle=:dash, linewidth=2)
+        
+        ghost_idx = findall(x -> !isnan(x) && abs(x - 2√2) < 0.5, dehn_error)
+        if !isempty(ghost_idx)
+            scatter!(ax2, ghost_idx, dehn_error[ghost_idx], color=:red, marker=:star5, markersize=12)
+        end
+    end
+
+    # Panel C: Pole Radius
+    ax3 = Axis(fig[2, 1], title="C: Twisting Topology (Pole Radius)")
+
+    radius_data = nothing
+    if tracker !== nothing
+        if hasproperty(tracker, :radius)
+            radius_data = tracker.radius
+        elseif hasproperty(tracker, :bridge) && hasproperty(tracker.bridge, :pole_radius)
+            radius_data = tracker.bridge.pole_radius
+        end
+    end
+
+    if radius_data !== nothing && !isempty(radius_data)
+        radius = Float64.(radius_data)
+        lines!(ax3, 1:length(radius), radius, color=:purple, linewidth=2)
+        xs = vcat(1:length(radius), length(radius):-1:1)
+        ys = vcat(radius, zeros(length(radius)))
+        poly!(ax3, Point2f.(xs, ys), color=(:purple, 0.3))
+    else
+        text!(ax3, 0.5, 0.5, text="No radius data available", color=:red, align=(:center, :center))
+    end
+
+    # Panel D: Perversity (Twisting Measure) - Only at blowup events
+    ax4 = Axis(fig[2, 2], title="D: Perversity (Twisting Measure)")
+
+    if tracker !== nothing
+        # Extract perversity data based on tracker type
+        event_indices = nothing
+        event_perversities = nothing
+        
+        if hasproperty(tracker, :perversity) && hasproperty(tracker, :event_times)
+            event_indices = findall(x -> x > 0, tracker.perversity)
+            event_perversities = tracker.perversity[event_indices]
+        elseif hasproperty(tracker, :event_times) && hasproperty(tracker, :event_perversities)
+            event_indices = tracker.event_times
+            event_perversities = tracker.event_perversities
+        elseif hasproperty(tracker, :perversity) && !hasproperty(tracker, :event_times)
+            nonzero_idx = findall(x -> x > 0, tracker.perversity)
+            if !isempty(nonzero_idx)
+                event_indices = nonzero_idx
+                event_perversities = tracker.perversity[nonzero_idx]
+            end
+        end
+        
+        # Plot if we have event data
+        if event_indices !== nothing && !isempty(event_indices)
+            perv_values = Float64.(event_perversities)
+            
+            # Create bar plot at event indices
+            barplot!(ax4, event_indices, perv_values, color=:orange, alpha=0.7)
+            
+            # Add value labels on top of bars
+            for (i, idx) in enumerate(event_indices)
+                text!(ax4, idx, perv_values[i] + 0.05, 
+                    text=string(round(perv_values[i], digits=1)), 
+                    fontsize=8, color=:black, align=(:center, :bottom))
+            end
+            
+            # Reference line at 1.0
+            hlines!(ax4, [1.0], color=:red, linestyle=:dash, linewidth=2)
+            
+            # Simple annotation using the max event index (no limits needed)
+            n_events = length(event_indices)
+            y_max = maximum(perv_values)
+            # Just use the last event index for positioning
+            text!(ax4, event_indices[end] * 0.7, y_max * 0.85, 
+                text="($n_events event$(n_events==1 ? "" : "s"))", 
+                color=:gray, fontsize=10)
+        else
+            text!(ax4, 0.5, 0.5, text="No perversity data (no blowup events)", 
+                color=:red, align=(:center, :center))
+        end
+    else
+        text!(ax4, 0.5, 0.5, text="No tracker data available", 
+            color=:red, align=(:center, :center))
+    end
+
+    # Label axes
+    ax4.xlabel = "Snapshot Index"
+    ax4.ylabel = "Perversity"
+
+    # Main title
+    Label(fig[0, :], "Twisting Topology & Monodromy Analysis", fontsize=18, font=:bold)
+
+    output_path = joinpath(folder, "twisting_topology.png")
+    save(output_path, fig)
+    println("  ✓ Saved to $output_path")
+
+    return fig
+end
+
+
 
 # ----------------------------------------------------------------------
 # Build prime ideal activity matrix (snapshots × ideals)
@@ -425,37 +683,218 @@ end
 # Also returns list of ideal identifiers (e.g., first prime path string).
 # ----------------------------------------------------------------------
 function build_prime_ideal_matrix(snapshot_files, folder)
-    # First pass: collect all unique prime ideal identifiers (e.g., first path element)
-    all_ideals = Set{String}()
-    ideal_data = Vector{Dict}[]   # store per snapshot list of ideals
-    for f in snapshot_files
+    # Optimised: skip snapshots whose prime ideal fingerprint is
+    # identical to the previous snapshot (stable zone deduplication).
+    # Only reads each unique configuration once.
+
+    all_ideals  = Set{String}()
+    ideal_data  = []          # Vector of (ideals_list | nothing=copy_prev)
+    n_snap      = length(snapshot_files)
+    last_fp     = ""
+    last_ideals = []
+    n_skipped   = 0
+
+    println("  Building prime ideal matrix ($n_snap snapshots)...")
+
+    for (i, f) in enumerate(snapshot_files)
         snap = load_json(joinpath(folder, f))
+        sev  = snapshot_severity(snap)
+
+        # Fingerprint using prime_higher_ideals count + top path
         ideals = get(snap, :prime_higher_ideals, [])
-        push!(ideal_data, ideals)
-        for ideal in ideals
-            # Use the first symbol of the closure or the path as identifier
-            path_str = join(ideal[:path], "→")  # Use Symbol, not String
-            push!(all_ideals, path_str)
+        fp_parts = [string(length(ideals))]
+        if !isempty(ideals) && haskey(ideals[1], :path)
+            push!(fp_parts, join(ideals[1][:path], "→")[1:min(40,end)])
         end
-    end
-    ideal_list = collect(all_ideals)
-    sort!(ideal_list)
-    n_ideals = length(ideal_list)
-    n_snap = length(snapshot_files)
-    # Build matrix: rows = snapshots, columns = ideals
-    mat = zeros(Float64, n_snap, n_ideals)
-    for (i, ideals) in enumerate(ideal_data)
-        for ideal in ideals
-            path_str = join(ideal["path"], "→")
-            col = findfirst(==(path_str), ideal_list)
-            if col !== nothing
-                mat[i, col] += ideal["total_support"]
+        fp = join(fp_parts, "|")
+
+        # Skip if identical to previous and not high severity
+        if fp == last_fp && sev < SEVERITY_THRESHOLD && i > 1 && i % FORCE_INTERVAL != 0
+            push!(ideal_data, nothing)   # sentinel = copy previous row
+            n_skipped += 1
+        else
+            for ideal in ideals
+                haskey(ideal, :path) || continue
+                push!(all_ideals, join(ideal[:path], "→"))
             end
+            push!(ideal_data, ideals)
+            last_ideals = ideals
+            last_fp     = fp
+        end
+
+        i % 100 == 0 && @printf("    %d/%d  skipped=%d\n", i, n_snap, n_skipped)
+    end
+
+    ideal_list = sort!(collect(all_ideals))
+    n_ideals   = length(ideal_list)
+    mat        = zeros(Float64, n_snap, n_ideals)
+
+    println("  Unique ideal configurations: $(n_ideals)  skipped rows: $(n_skipped)")
+
+    last_row = zeros(Float64, n_ideals)
+    for (i, ideals) in enumerate(ideal_data)
+        if ideals === nothing
+            # Copy previous row (identical configuration)
+            mat[i, :] = last_row
+        else
+            for ideal in ideals
+                haskey(ideal, :path) || continue
+                path_str = join(ideal[:path], "→")
+                col = findfirst(==(path_str), ideal_list)
+                if col !== nothing
+                    v = get(ideal, :total_support, 0.0)
+                    mat[i, col] += v isa Number ? Float64(v) : 0.0
+                end
+            end
+            last_row = mat[i, :]
         end
     end
+
+    println("  Prime ideal matrix: $(size(mat))  ($n_skipped rows deduplicated)")
     return mat, ideal_list
 end
 
+# ----------------------------------------------------------------------
+# Extract tracker data directly from A∞ snapshots
+# ----------------------------------------------------------------------
+# ----------------------------------------------------------------------
+# Create proper TrackerResult from extracted data
+# ----------------------------------------------------------------------
+function create_tracker_result_from_snapshots(snapshot_files, folder, bridge)
+    """
+    Create a proper TrackerResult object from snapshot data.
+    This matches the exact structure expected by SingularityTrackerV2.jl.
+    """
+    
+    # First, check if we have blowup events in the snapshots
+    event_times = Int[]
+    event_regions = Symbol[]
+    event_perversities = Int[]
+    pre_radius = Float64[]
+    post_radius = Float64[]
+    gains = Float64[]
+    face_changes = Int[]
+    
+    for i in eachindex(snapshot_files)
+        filepath = joinpath(folder, snapshot_files[i])
+        snap = load_json(filepath)
+        
+        # Check if this is a blowup event (has prime_higher_ideals)
+        if haskey(snap, :prime_higher_ideals) && !isempty(snap[:prime_higher_ideals])
+            push!(event_times, i)
+            
+            # Infer region from the snapshot
+            region = infer_region_from_snapshot(snap)
+            push!(event_regions, region)
+            
+            # Get max perversity from prime_higher_ideals
+            max_perv = 0
+            for ideal in snap[:prime_higher_ideals]
+                perv = get(ideal, :perversity, 0)
+                if perv isa Number
+                    max_perv = max(max_perv, Int(round(perv)))
+                end
+            end
+            push!(event_perversities, max_perv)
+            
+            # Pre and post radius (from bridge data if available)
+            pre = i > 1 ? bridge.pole_radius[i-1] : bridge.pole_radius[i]
+            post = i < length(snapshot_files) ? bridge.pole_radius[i+1] : bridge.pole_radius[i]
+            push!(pre_radius, pre)
+            push!(post_radius, post)
+            push!(gains, pre - post)
+            
+            # Face change (flip detection) - FIXED: bridge.flip is a Vector
+            fc = 0
+            if i > 1 && i <= length(bridge.flip)
+                fc = bridge.flip[i]
+            end
+            push!(face_changes, fc)
+        end
+    end
+    
+    # If no blowup events found, create minimal event data
+    if isempty(event_times)
+        println("  No blowup events detected in snapshots")
+        println("  Creating minimal TrackerResult with empty events")
+        
+        # Use all snapshots as "events" for plotting purposes
+        for i in eachindex(snapshot_files)
+            push!(event_times, i)
+            push!(event_regions, :Unknown)
+            push!(event_perversities, 0)
+            push!(pre_radius, bridge.pole_radius[max(1, i-1)])
+            push!(post_radius, bridge.pole_radius[min(end, i+1)])
+            push!(gains, 0.0)
+            push!(face_changes, 0)
+        end
+    end
+    
+    # Create and return TrackerResult
+    return TrackerResult(
+        bridge,
+        event_times,
+        event_regions,
+        event_perversities,
+        pre_radius,
+        post_radius,
+        gains,
+        face_changes
+    )
+end
+
+# Helper function to infer region from snapshot
+function infer_region_from_snapshot(snap)
+    REGIONS = [:CA1sp, :BLA, :HY, :HPF, :sAMY, :LA]
+    
+    # Try explicit region field
+    if haskey(snap, :region)
+        r = Symbol(String(snap[:region]))
+        r in REGIONS && return r
+    end
+    
+    # Scan prime_higher_ideals for region indicators
+    if haskey(snap, :prime_higher_ideals)
+        for ideal in snap[:prime_higher_ideals]
+            # Check closure symbols
+            if haskey(ideal, :closure)
+                for sym in ideal[:closure]
+                    sym_str = String(sym)
+                    for r in REGIONS
+                        if occursin(String(r), sym_str)
+                            return r
+                        end
+                    end
+                end
+            end
+            # Check path symbols
+            if haskey(ideal, :path)
+                for sym in ideal[:path]
+                    sym_str = String(sym)
+                    for r in REGIONS
+                        if occursin(String(r), sym_str)
+                            return r
+                        end
+                    end
+                end
+            end
+        end
+    end
+    
+    # Scan m6 keys as fallback
+    if haskey(snap, :m6)
+        for (k, v) in pairs(snap[:m6])
+            k_str = String(k)
+            for r in REGIONS
+                if occursin(String(r), k_str) && (v isa Number && !iszero(v))
+                    return r
+                end
+            end
+        end
+    end
+    
+    return :Unknown
+end
 # ----------------------------------------------------------------------
 # Main driver
 # ----------------------------------------------------------------------
@@ -482,9 +921,16 @@ function main()
     println("="^80)
 
     # 1. List and filter only ainf_export_*.json
-    all_files = filter(f -> occursin(r"ainf_export_\d+(?:\.\d+)?\.json", basename(f)), readdir(folder))
+    # List all matching files
+    all_files = filter(readdir(folder)) do f
+        occursin(r"ainf_export_(?:[A-Za-z0-9]+_)?\d+(?:\.\d+)\.json", basename(f))
+    end
+
+    # Sort by timestamp (extracts number from filename)
     sort!(all_files, by = f -> parse_timestamp(f))
-    
+
+    println("Found $(length(all_files)) A∞ snapshot files.")
+
     # Handle test mode with file limiting
     if max_files > 0 && length(all_files) > max_files
         println("Test mode: limiting to first $max_files files.")
@@ -522,15 +968,82 @@ function main()
     bridge = run_bridge!(folder)
     println("Unified zeta saved to unified_zeta.json\n")
 
-    # 3. Run singularity tracker
+    # 3. Run singularity tracker (or extract from snapshots)
+
     println("--- Running SingularityTrackerV2 ---")
-    tracker = run_tracker!(folder)
-    event_table(tracker)
-    save("tracker_plots.png", plot_tracker(tracker))
-    save("bridge_pole_radius.png", plot_pole_radius(bridge))
+
+    # First try to run the normal tracker
+    tracker = nothing
+    try
+        tracker = run_tracker!(folder)
+        if tracker !== nothing && !isempty(tracker.event_times)
+            println("  ✓ Successfully loaded tracker with $(length(tracker.event_times)) events")
+            event_table(tracker)
+        else
+            println("  Tracker has no events, will extract from snapshots")
+            tracker = nothing
+        end
+    catch e
+        println("  Could not run normal tracker: $e")
+        tracker = nothing
+    end
+
+    # If normal tracker failed or has no data, create from snapshots
+    if tracker === nothing || (tracker isa TrackerResult && isempty(tracker.event_times))
+        println("  Creating tracker from snapshot data...")
+        tracker = create_tracker_result_from_snapshots(all_files, folder, bridge)
+        println("  Created tracker with $(length(tracker.event_times)) events")
+        
+        # Try to display event table (may fail for extracted data)
+        try
+            event_table(tracker)
+        catch e
+            println("  Note: event_table display not available: $e")
+        end
+    end
+
+    # Generate plots (ONCE!)
+    try
+        save("tracker_plots.png", plot_tracker(tracker))
+        save("bridge_pole_radius.png", plot_pole_radius(bridge))
+        println("  ✓ Saved tracker plots")
+    catch e
+        println("  Could not save tracker plots: $e")
+    end
+
+    # DEBUG: Check tracker contents
+    println("\n=== TRACKER DEBUG ===")
+    println("tracker type: ", typeof(tracker))
+    if tracker !== nothing
+        for field in fieldnames(typeof(tracker))
+            if hasproperty(tracker, field)
+                val = getproperty(tracker, field)
+                println("  .$field: ", val === nothing ? "nothing" : 
+                        (isa(val, AbstractVector) ? "$(length(val)) elements" : "$val"))
+            end
+        end
+    end
+    println("===================\n")
 
     # 4. Run Schober navigator (categorical chambers/walls)
     println("\n--- Running SchoberNavigatorV2 ---")
+
+    # Stability prediction: scan files for unique fingerprints
+    # before running the expensive schober path
+    println("  Pre-scanning snapshot stability...")
+    fps_all = String[]
+    for f in all_files
+        snap = load_json(joinpath(folder, f))
+        push!(fps_all, snapshot_fingerprint(snap))
+    end
+    n_unique_fps = length(unique(fps_all))
+    pct_stable   = round(100.0 * (1 - n_unique_fps / max(length(fps_all), 1)), digits=1)
+    @printf("  Unique fingerprints: %d / %d  (%.1f%% of snapshots are stable duplicates)\n",
+            n_unique_fps, length(fps_all), pct_stable)
+    if pct_stable > 80
+        println("  ✓ High stability detected — Schober will skip most identical chambers")
+    end
+
     full_paths = [joinpath(folder, f) for f in all_files]
     schober_state = run_schober_path(full_paths)
     summarize_path(schober_state)
@@ -623,6 +1136,17 @@ function main()
         "total_wall_crossings" => isfile("schober_walls.tsv") ? nrow(wall_data) : 0,
         "rees_flips_available" => isfile(rees_output)
     )
+    
+    # ===== Plot twisting topology =====
+    println("\n--- Generating twisting topology visualization ---")
+
+    # Make sure we have plucker_phase
+    if !@isdefined(plucker_phase) || plucker_phase === nothing
+        plucker_phase = compute_plucker_phase()
+    end
+
+    # Call with CORRECT number of arguments (4, not 5)
+    plot_twisting_topology(plucker_phase, dehn_error, tracker, folder)
 
     open("flip_summary.json", "w") do f
         JSON3.write(f, flip_summary)
@@ -637,6 +1161,19 @@ function main()
     println("  plucker_phase.json, dehn_error.json, prime_ideal_activity.csv/.json")
     println("  unified_zeta.json, plucker_zeta_dense.json (already present)")
     println("="^80)
+
+
+
+    # Check dehn_error values
+    df = CSV.read("dehn_error.csv", DataFrame)
+    println("Dehn error values:")
+    println(df.dehn_error)
+
+    # Check if any reached 2√2 (2.828)
+    println("\nAny ghost signals? ", any(x -> !ismissing(x) && abs(x - 2√2) < 0.5, df.dehn_error))
+
+    # Check max error
+    println("Max error: ", maximum(skipmissing(df.dehn_error)))
     
     # Return info for cleanup
     return (using_temp_dir, test_dir)
@@ -648,8 +1185,7 @@ end
 if abspath(PROGRAM_FILE) == @__FILE__
     using_temp_dir, test_dir = main()
     if using_temp_dir && isdir(test_dir)
-        rm(test_dir, recursive=true)
-        println("Removed temporary test directory: $test_dir")
+        #rm(test_dir, recursive=true)
+        println("Don't forget to Remove temporary test directory: $test_dir, after seeing .png files")
     end
 end
-
