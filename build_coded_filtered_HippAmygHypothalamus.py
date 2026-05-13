@@ -20,7 +20,9 @@ except Exception:
 #node_regions_cleanHippAmygHypthalamus.csv
 #node_regions_cleanHippAmygHypthalamus_HPF_sAMY.csv
 #NODES_FILE = "node_regions_clean.csv"
-NODES_FILE = "node_regions_cleanHippAmygHypthalamus.csv"
+#NODES_FILE = "node_regions_cleanHippAmygHypthalamus.csv"
+#NODES_FILE = "node_regions_cleanHippAmygHypthalamus_ANDPAL.csv"
+NODES_FILE = "node_regions_cleanHippAmygHypthalamus_ANDLSX.csv"
 #NODES_FILE = "node_regions_cleanHippAmygHypthalamus_HPF_sAMY.csv" # with DG, CAe as HPF and CeA, MEA as sAMY
 #NODES_FILE = "node_regions_cleanHippAmygHypthalamus_CA1.csv" # with CA1 region only
 #NODES_FILE = "node_regions_cleanHippAmygHypthalamus_BLA.csv" # with CA1 region only
@@ -32,7 +34,8 @@ NODES_FILE = "node_regions_cleanHippAmygHypthalamus.csv"
 
 EDGES_FILE = "/Users/vaw1/Downloads/OGB/BALBc_no1_raw/BALBc-no1_iso3um_stitched_segmentation_bulge_size_3.0_edges.csv"
 
-OUT_VTP = "nodes_edges_filtered_six.vtp"
+#OUT_VTP = "nodes_edges_filtered_six_PAL.vtp"
+OUT_VTP = "nodes_edges_filtered_six_LSX.vtp"
 #OUT_VTP = "nodes_edges_filtered_CA1BLAHY.vtp"
 #OUT_VTP = "nodes_edges_filtered_CA1BLAHY_HPFsAMY.vtp"
 #OUT_VTP = "nodes_edges_filtered_CA1BLAHY_CA1.vtp"

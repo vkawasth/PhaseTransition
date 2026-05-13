@@ -2,9 +2,13 @@ import pandas as pd
 import numpy as np
 from collections import defaultdict
 
+# Add regions in annotate_regions_HippAmygHypthalamus.py to create a csv file
 # Paths (adjust as needed)
-#NODES_CSV = "node_regions_cleanHippAmygHypthalamus_ALLWITH_PAL_LSX.csv"  # output from annotation script
-NODES_CSV = "node_regions_cleanHippAmygHypthalamus.csv"  # output from annotation script
+NODES_CSV = "node_regions_cleanHippAmygHypthalamus_ALLWITH_PAL_LSX.csv"  # output from annotation script
+# node_regions_cleanHippAmygHypthalamus_ALLWITH_PAL_LSX.csv"  # output from annotation script
+#NODES_CSV = "node_regions_cleanHippAmygHypthalamus.csv"  # default 6 output from annotation script
+#NODES_CSV = "node_regions_cleanHippAmygHypthalamus_ANDPAL.csv" 
+#NODES_CSV = "node_regions_cleanHippAmygHypthalamus_ANDLSX.csv" 
 EDGES_CSV = "/Users/vaw1/Downloads/OGB/BALBc_no1_raw/BALBc-no1_iso3um_stitched_segmentation_bulge_size_3.0_edges.csv"
 OUTPUT_CSV = "region_graph.csv"
 

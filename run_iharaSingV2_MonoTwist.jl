@@ -14,7 +14,8 @@
 using JSON3, LinearAlgebra, Statistics, CairoMakie
 using Printf
 using CSV
-using DataFrames 
+using DataFrames
+using StaticArrays   # zero-alloc 4x4 monodromy
 
 # Include modules (adjust paths if needed)
 include("OnlineAssociahedronNavigatorV3.jl")
@@ -31,8 +32,134 @@ using .SingularityTracker: TrackerResult
 using .SchoberNavigatorV2
 using .ReesGrassmannBridge
 
+# NOTE **********************************************************************
+# ORDER OF REGIONS MUST MATCH WHAT WE SEE FROM
+# build_region_graph.py -- Shown below for PAL
+# Regions : ['BLA', 'CA1sp', 'HPF', 'HY', 'LA', 'PAL', 'sAMY']
+# Regions : ['BLA', 'CA1sp', 'HPF', 'HY', 'LA', 'LSX', 'sAMY']
+# Regions: ['BLA', 'CA1sp', 'HPF', 'HY', 'LA', 'LSX', 'PAL', 'sAMY']
+# ***************************************************************************
 const REGIONS = [:CA1sp, :BLA, :HY, :HPF, :sAMY, :LA]
 load_json(file) = JSON3.read(read(file,String))
+
+# ============================================================================
+# SNAPSHOT CACHE — single-pass JSON loading
+#
+# Every function that iterates snapshot_files calls load_cached(i) instead of
+# load_json(path). The first call parses the file; subsequent calls return the
+# already-parsed object. This reduces 5 sequential full-file passes to 1.
+#
+# Usage:
+#   init_snapshot_cache!(snapshot_files, folder)   # call once in main()
+#   snap = load_cached(i)                          # O(1) lookup everywhere
+# ============================================================================
+const SNAP_CACHE = Dict{Int, Any}()
+
+function init_snapshot_cache!(snapshot_files, folder; verbose=true)
+    empty!(SNAP_CACHE)
+    n = length(snapshot_files)
+    verbose && println("  Loading $n snapshots into memory cache...")
+    t0 = time()
+    fps = String[]
+    sevs = Float64[]
+    for (i, f) in enumerate(snapshot_files)
+        snap = load_json(joinpath(folder, f))
+        SNAP_CACHE[i] = snap
+        push!(fps,  snapshot_fingerprint(snap))
+        push!(sevs, snapshot_severity(snap))
+        i % 200 == 0 && verbose && @printf("    loaded %d/%d\n", i, n)
+    end
+    elapsed = round(time() - t0, digits=1)
+    n_unique = length(unique(fps))
+    pct_stable = round(100.0*(1 - n_unique/max(n,1)), digits=1)
+    verbose && println("  Cache ready: $n snapshots in $(elapsed)s")
+    verbose && @printf("  Unique fingerprints: %d / %d  (%.1f%% stable duplicates)\n",
+                       n_unique, n, pct_stable)
+    return fps, sevs
+end
+
+load_cached(i::Int) = SNAP_CACHE[i]
+
+# ============================================================================
+# STATICARRAYS SO(4) MONODROMY — exact Rodrigues formula for Gr(2,4)
+#
+# Replaces: exp(theta*Omega) [Pade, ~40 us] + svd(M) [~15 us] per snapshot
+# With:     Rodrigues on SMatrix{4,4} [~0.5 us], zero heap allocations
+#
+# For a rank-2 bivector Omega, Omega^3 = -alpha^2 * Omega exactly, so the
+# infinite matrix exponential collapses to three terms. No approximation.
+# ============================================================================
+
+@inline function _build_bivector(q12,q13,q14,q23,q24,q34)
+    klein = q12*q34 - q13*q24 + q14*q23
+    nf = sqrt(q12^2+q13^2+q14^2+q23^2+q24^2+q34^2)
+    nf > 1e-10 || return (@SMatrix zeros(4,4)), 0.0, 0.0, nf, klein
+    s = 1/nf
+    q12*=s; q13*=s; q14*=s; q23*=s; q24*=s; q34*=s
+    Omega = @SMatrix [
+         0.0   q12   q13   q14
+        -q12   0.0   q23   q24
+        -q13  -q23   0.0   q34
+        -q14  -q24  -q34   0.0 ]
+    return Omega, (pi/2)*nf, 1.0, nf, klein
+end
+
+@inline function _rodrigues(Omega::SMatrix{4,4,Float64,16}, theta::Float64)
+    I4  = SMatrix{4,4,Float64,16}(I)
+    Om2 = Omega * Omega
+    tr2 = Om2[1,1]+Om2[2,2]+Om2[3,3]+Om2[4,4]   # = -2*alpha^2
+    abs(tr2) < 1e-14 && return I4
+    alpha = sqrt(-tr2/2)
+    alpha < 1e-12 && return I4
+    ta = theta*alpha
+    ia = 1/alpha
+    return I4 + sin(ta)*ia*Omega + (1-cos(ta))*(ia*ia)*Om2
+end
+
+function monodromy_fast(snap)::Matrix{Float64}
+    q12=1.0; q13=0.0; q14=0.0; q23=0.0; q24=0.0; q34=0.0
+
+    if haskey(snap,:prime_paths) && !isempty(snap[:prime_paths])
+        tlw = 0.0
+        for pp in snap[:prime_paths]
+            if haskey(pp,:weight)
+                w=Float64(pp[:weight]); (w>0&&isfinite(w)) && (tlw+=log10(w))
+            end
+        end
+        if tlw>0
+            q12 = 1.0+0.1*min(tlw/30,0.5)
+            q34 = 0.1*min(length(snap[:prime_paths])/10,0.2)
+        end
+    end
+
+    if haskey(snap,:prime_higher_ideals)
+        ts=0.0
+        for id in snap[:prime_higher_ideals]
+            haskey(id,:total_support) && (ts+=Float64(id[:total_support]))
+        end
+        if ts>0
+            q13=0.1*min(log10(ts+1),10.0)
+            q24=0.05*min(log10(ts+1),5.0)
+        end
+    end
+
+    for (mult,factor) in ((:m4,1.0),(:m5,2.0),(:m6,3.0))
+        if haskey(snap,mult)
+            n_nz=0
+            for (_,v) in snap[mult]
+                (v isa Number&&!iszero(v)&&isfinite(Float64(v))) && (n_nz+=1)
+            end
+            q14+=factor*min(n_nz/500,pi/6)/pi
+            q23+=0.5*factor*min(n_nz/500,pi/6)/pi
+        end
+    end
+
+    nf=sqrt(q12^2+q13^2+q14^2+q23^2+q24^2+q34^2)
+    if nf>1e-10; s=1/nf; q12*=s;q13*=s;q14*=s;q23*=s;q24*=s;q34*=s; end
+
+    Omega,theta,_,_,_ = _build_bivector(q12,q13,q14,q23,q24,q34)
+    return Matrix{Float64}(_rodrigues(Omega,theta))
+end
 
 # ======================================================================
 # STABILITY-AWARE DEDUPLICATION CACHE
@@ -63,31 +190,37 @@ Uses: top prime path signature + m6 total norm + n_prime_paths.
 Fast to compute — no matrix algebra.
 """
 function snapshot_fingerprint(snap)::String
-    # Prime path count
     np = haskey(snap, :prime_paths) ? length(snap[:prime_paths]) : 0
-    # Top path signature (first path as string)
+    
+    # Top path signature
     top_path = ""
     if haskey(snap, :prime_paths) && !isempty(snap[:prime_paths])
         pp = snap[:prime_paths]
-        # Sort by weight, take top path
         sorted_pp = sort(collect(pp), by=p->get(p,:weight,0.0), rev=true)
         if !isempty(sorted_pp) && haskey(sorted_pp[1], :path)
-            top_path = join(sorted_pp[1][:path], "→")
+            full_path = join(sorted_pp[1][:path], "→")
+            # Safe truncation
+            chars = collect(full_path)
+            top_path = length(chars) > 50 ? String(chars[1:50]) : full_path
         end
     end
-    # m6 norm (cheap: just count entries)
+    
+    # m6 count
     m6_count = haskey(snap, :m6) ? length(snap[:m6]) : 0
-    # Tubing dominant set (first tubing as string)
+    
+    # Tubing signature
     tubing_sig = ""
     if haskey(snap, :prime_higher_ideals) && !isempty(snap[:prime_higher_ideals])
         first_ideal = snap[:prime_higher_ideals][1]
         if haskey(first_ideal, :closure)
-            tubing_sig = join(sort(string.(first_ideal[:closure])), ",")
+            full_sig = join(sort(string.(first_ideal[:closure])), ",")
+            chars = collect(full_sig)
+            tubing_sig = length(chars) > 30 ? String(chars[1:30]) : full_sig
         end
     end
-    return "$(np)|$(m6_count)|$(top_path[1:min(50,length(top_path))])|$(tubing_sig[1:min(30,length(tubing_sig))])"
+    
+    return "$(np)|$(m6_count)|$(top_path)|$(tubing_sig)"
 end
-
 """
 Snapshot severity for deciding whether to force recomputation.
 Returns m6 total support norm.
@@ -464,79 +597,73 @@ end
 # three dose intervals (based on dose times). For simplicity, we compute
 # cumulative product and output norm(M_cumulative - I).
 # ----------------------------------------------------------------------
-function compute_dehn_error(snapshot_files, folder)
-    """
-    Compute cumulative monodromy error (Dehn twist error).
-    Optimised: skips identical snapshots in stable zone.
-    Ghost signal appears when error → 2√2.
-    """
-    N = 4
-    M_total       = Matrix{Float64}(I, N, N)
-    error_series  = Float64[]
+function compute_dehn_error(snapshot_files, folder;
+        precomputed_fps::Union{Vector{String},Nothing}=nothing,
+        precomputed_sevs::Union{Vector{Float64},Nothing}=nothing)
+    # OPTIMISED: uses SNAP_CACHE (no disk reads) + monodromy_fast (Rodrigues,
+    # ~0.5 us) + fingerprint monodromy cache (skip duplicate configs).
+    N         = 4
+    M_total   = Matrix{Float64}(I, N, N)
+    error_series     = Float64[]
     monodromy_series = []
-    recent_fps    = String[]
-    last_M        = Matrix{Float64}(I, N, N)
-    last_err      = 0.0
-    n_total       = length(snapshot_files)
-    n_skipped     = 0
-    n_computed    = 0
+    mono_cache       = Dict{String, Matrix{Float64}}()   # fp -> matrix
+    recent_fps       = String[]
+    last_M           = Matrix{Float64}(I, N, N)
+    last_err         = 0.0
+    n_total          = length(snapshot_files)
+    n_skip=0; n_compute=0; n_cache=0
 
-    for (i, f) in enumerate(snapshot_files)
-        filepath = joinpath(folder, f)
-        snap     = load_json(filepath)
+    println("\n  Dehn error across $n_total snapshots (cached)...")
+
+    for i in 1:n_total
+        snap = load_cached(i)
+        fp   = precomputed_fps  !== nothing ? precomputed_fps[i]  : snapshot_fingerprint(snap)
+        sev  = precomputed_sevs !== nothing ? precomputed_sevs[i] : snapshot_severity(snap)
 
         if i == 1
-            println("Sample snapshot keys: ", keys(snap))
-            println("Has prime_paths? ", haskey(snap, :prime_paths))
-            println("prime_paths length: ", length(get(snap, :prime_paths, [])))
+            println("  Sample keys: ", collect(keys(snap))[1:min(5,length(keys(snap)))])
         end
 
-        # Fingerprint and severity for cache decision
-        fp  = snapshot_fingerprint(snap)
-        sev = snapshot_severity(snap)
         skip, reason = should_skip(i, n_total, fp, recent_fps, sev)
 
         if skip
-            # Reuse last computed monodromy — identical input → identical output
             push!(error_series, last_err)
             push!(monodromy_series, last_M)
-            n_skipped += 1
+            n_skip += 1
+        elseif haskey(mono_cache, fp)
+            M = mono_cache[fp]
+            M_total = M * M_total
+            err = norm(M_total - I)
+            push!(error_series, err); push!(monodromy_series, M_total)
+            last_M=M_total; last_err=err; n_cache+=1
         else
             try
-                M = monodromy(snap)
+                M = monodromy_fast(snap)
+                mono_cache[fp] = M
                 M_total = M * M_total
-                err     = norm(M_total - I)
-                push!(error_series, err)
-                push!(monodromy_series, M_total)
-                last_M   = M_total
-                last_err = err
-                n_computed += 1
-
-                if err > 2.5 && err < 3.5
-                    @info "Ghost signal at snapshot $i: error=$err  reason=$reason"
-                    @info "  Monodromy eigenvalues: $(eigvals(M_total))"
+                err = norm(M_total - I)
+                push!(error_series, err); push!(monodromy_series, M_total)
+                last_M=M_total; last_err=err; n_compute+=1
+                if 2.5 < err < 3.5
+                    @info "  [GHOST] snapshot $i error=$(round(err,digits=3)) $reason"
                 end
             catch e
-                @warn "Monodromy failed for $f: $(typeof(e).name.name)"
-                push!(error_series, NaN)
-                push!(monodromy_series, nothing)
-                n_computed += 1
+                @warn "  monodromy_fast failed snapshot $i: $(e)"
+                push!(error_series, NaN); push!(monodromy_series, nothing)
             end
         end
 
-        # Update fingerprint history
         push!(recent_fps, fp)
-        length(recent_fps) > LOOKBACK + 2 && popfirst!(recent_fps)
+        length(recent_fps) > LOOKBACK+2 && popfirst!(recent_fps)
 
-        # Progress every 50 snapshots
-        if i % 50 == 0 || i == n_total
-            @printf("  Dehn error: %d/%d  computed=%d  skipped=%d  (%.0f%% saved)\n",
-                    i, n_total, n_computed, n_skipped,
-                    100.0 * n_skipped / max(i, 1))
+        if i % 100 == 0 || i == n_total
+            saved = n_skip+n_cache
+            @printf("    %d/%d  computed=%d cached=%d skipped=%d (%.0f%% saved)\n",
+                    i, n_total, n_compute, n_cache, n_skip,
+                    100*saved/max(i,1))
         end
     end
-
-    println("  Dehn error complete: $n_computed computed, $n_skipped skipped")
+    println("  Dehn error done: $n_compute computed $n_cache cached $n_skip skipped")
     return error_series, monodromy_series
 end
 
@@ -697,7 +824,7 @@ function build_prime_ideal_matrix(snapshot_files, folder)
     println("  Building prime ideal matrix ($n_snap snapshots)...")
 
     for (i, f) in enumerate(snapshot_files)
-        snap = load_json(joinpath(folder, f))
+        snap = load_cached(i)
         sev  = snapshot_severity(snap)
 
         # Fingerprint using prime_higher_ideals count + top path
@@ -776,8 +903,7 @@ function create_tracker_result_from_snapshots(snapshot_files, folder, bridge)
     face_changes = Int[]
     
     for i in eachindex(snapshot_files)
-        filepath = joinpath(folder, snapshot_files[i])
-        snap = load_json(filepath)
+        snap = load_cached(i)
         
         # Check if this is a blowup event (has prime_higher_ideals)
         if haskey(snap, :prime_higher_ideals) && !isempty(snap[:prime_higher_ideals])
@@ -963,7 +1089,12 @@ function main()
     
     println("Processing $(length(all_files)) A∞ snapshot files.\n")
 
-    # 2. Run bridge (navigator + spectral)
+    # 2. Load ALL snapshots into memory once — eliminates 4 redundant file passes
+    println("--- Loading snapshot cache ---")
+    precomp_fps, precomp_sevs = init_snapshot_cache!(all_files, folder)
+    println()
+
+    # Run bridge (navigator + spectral)
     println("--- Running IharaAssociahedronBridgeV2 ---")
     bridge = run_bridge!(folder)
     println("Unified zeta saved to unified_zeta.json\n")
@@ -1028,21 +1159,11 @@ function main()
     # 4. Run Schober navigator (categorical chambers/walls)
     println("\n--- Running SchoberNavigatorV2 ---")
 
-    # Stability prediction: scan files for unique fingerprints
-    # before running the expensive schober path
-    println("  Pre-scanning snapshot stability...")
-    fps_all = String[]
-    for f in all_files
-        snap = load_json(joinpath(folder, f))
-        push!(fps_all, snapshot_fingerprint(snap))
-    end
-    n_unique_fps = length(unique(fps_all))
-    pct_stable   = round(100.0 * (1 - n_unique_fps / max(length(fps_all), 1)), digits=1)
-    @printf("  Unique fingerprints: %d / %d  (%.1f%% of snapshots are stable duplicates)\n",
-            n_unique_fps, length(fps_all), pct_stable)
-    if pct_stable > 80
-        println("  ✓ High stability detected — Schober will skip most identical chambers")
-    end
+    # Stability summary (already computed by init_snapshot_cache!)
+    n_unique_fps = length(unique(precomp_fps))
+    pct_stable   = round(100.0*(1 - n_unique_fps/max(length(precomp_fps),1)), digits=1)
+    @printf("  Fingerprint summary: %d unique / %d total (%.1f%% stable)\n",
+            n_unique_fps, length(precomp_fps), pct_stable)
 
     full_paths = [joinpath(folder, f) for f in all_files]
     schober_state = run_schober_path(full_paths)
@@ -1068,7 +1189,8 @@ function main()
     end
 
     # Dehn twist error (monodromy coherence)
-    dehn_error, monodromy_matrices = compute_dehn_error(all_files, folder)
+    dehn_error, monodromy_matrices = compute_dehn_error(all_files, folder;
+        precomputed_fps=precomp_fps, precomputed_sevs=precomp_sevs)
 
     # Save as CSV (handles NaN values properly)
     dehn_error_df = DataFrame(

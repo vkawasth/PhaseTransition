@@ -17,60 +17,22 @@ using Statistics
 using Combinatorics
 using CairoMakie
 using LinearAlgebra
-using Printf
 
 export Navigator,
        run_folder!,
        plot_scores,
        plot_transport,
        plot_tubes,
-       tubing_signature,
-       monodromy_complex
+       tubing_signature
 
 ###############################################################
 # REGIONS & SUPPORT GRAPH
 ###############################################################
 
-const REGIONS = [:BLA,:CA1sp,:HPF,:HY,:LA,:sAMY]
+const REGIONS = [:CA1sp,:BLA,:HY,:HPF,:sAMY,:LA]
 const N = length(REGIONS)
 
 idx(r::Symbol) = findfirst(==(r), REGIONS)
-
-# ─────────────────────────────────────────────────────────────────────────────
-# PRE-COMPUTED LOOKUP TABLES  (computed once at module load)
-#
-# REGION_STRINGS: Symbol -> String, avoids String(r) on every occursin call.
-# REGION_STRS_VEC: same as vector for iteration.
-# PATH_KEY_CACHE: "f_X_Y→..." -> Vector{Symbol}, caches region_hits results.
-# SNAP_SCORE_CACHE: (snap_hash, tube_hash) -> Float64, caches score_tube.
-# SNAP_CANDS_CACHE: snap_hash -> Vector{Set{Symbol}}, caches candidate_tubes.
-# TUBE_COMPAT_CACHE: (hash(A),hash(B)) -> Bool, caches compatible() results.
-# ─────────────────────────────────────────────────────────────────────────────
-const REGION_STRINGS = Dict{Symbol,String}(r => string(r) for r in REGIONS)
-const REGION_STRS_VEC = [string(r) for r in REGIONS]
-
-const PATH_KEY_CACHE   = Dict{String, Vector{Symbol}}()
-const SNAP_SCORE_CACHE = Dict{Tuple{UInt64,UInt64}, Float64}()
-const SNAP_CANDS_CACHE = Dict{UInt64, Vector{Set{Symbol}}}()
-const TUBE_COMPAT_CACHE= Dict{Tuple{UInt64,UInt64}, Bool}()
-
-# Pre-computed tube hashes (stable across the run)
-const TUBE_HASH = Dict{Set{Symbol}, UInt64}()  # filled after BASE_TUBES built
-
-function _init_tube_hashes!()
-    empty!(TUBE_HASH)
-    for t in BASE_TUBES
-        TUBE_HASH[t] = hash(t)
-    end
-end
-
-function clear_nav_caches!()
-    empty!(PATH_KEY_CACHE)
-    empty!(SNAP_SCORE_CACHE)
-    empty!(SNAP_CANDS_CACHE)
-    empty!(TUBE_COMPAT_CACHE)
-    println("  Navigator caches cleared")
-end
 
 function support_graph()
     G = Dict(
@@ -97,19 +59,8 @@ const G = support_graph()
 # HELPERS
 ###############################################################
 
-# Cached region_hits: check the Dict first, compute and store on miss.
-# Called ~1M times per snapshot without caching.
-function region_hits(s::String)::Vector{Symbol}
-    haskey(PATH_KEY_CACHE, s) && return PATH_KEY_CACHE[s]
-    hits = Symbol[]
-    for i in 1:length(REGIONS)
-        occursin(REGION_STRS_VEC[i], s) && push!(hits, REGIONS[i])
-    end
-    result = unique(hits)
-    # Only cache short keys to bound memory; long path strings are rare repeats
-    length(s) <= 200 && (PATH_KEY_CACHE[s] = result)
-    return result
-end
+region_hits(s::String) =
+    unique([r for r in REGIONS if occursin(String(r), s)])
 
 load_json(file) = JSON3.read(read(file, String))
 
@@ -127,19 +78,13 @@ function adjacent_sets(A, B)
 end
 
 function compatible(A::Set{Symbol}, B::Set{Symbol})
-    # Cache by (hash(A), hash(B)) -- symmetric, so normalise order
-    ha = hash(A); hb = hash(B)
-    key = ha <= hb ? (ha, hb) : (hb, ha)
-    haskey(TUBE_COMPAT_CACHE, key) && return TUBE_COMPAT_CACHE[key]
-    result = if A ⊆ B || B ⊆ A
-        true
-    elseif isempty(intersect(A, B)) && !adjacent_sets(A, B)
-        true
-    else
-        false
+    if A ⊆ B || B ⊆ A
+        return true
     end
-    TUBE_COMPAT_CACHE[key] = result
-    return result
+    if isempty(intersect(A, B)) && !adjacent_sets(A, B)
+        return true
+    end
+    false
 end
 
 function tubing_ok(T)
@@ -186,25 +131,12 @@ function all_tubes()
 end
 
 const BASE_TUBES = all_tubes()   # ~57 tubes for 6 regions
-# Pre-compute hashes for all base tubes (used by score_tube cache key)
-# Called once at module load — negligible cost
-const _TUBE_HASH_INIT = Dict{Set{Symbol},UInt64}(t => hash(t) for t in BASE_TUBES)
 
 ###############################################################
 # SCORES (m6, m5, m4, prime_paths, prime_ideals, cup)
 ###############################################################
 
 function score_tube(snapshot, τ)
-    # Cache: same snapshot + same tube → same score (very common in stable zone)
-    sh = hash(snapshot); th = get(_TUBE_HASH_INIT, τ, hash(τ))
-    key = (sh, th)
-    haskey(SNAP_SCORE_CACHE, key) && return SNAP_SCORE_CACHE[key]
-    s = _score_tube_inner(snapshot, τ)
-    SNAP_SCORE_CACHE[key] = s
-    return s
-end
-
-function _score_tube_inner(snapshot, τ)
     s = 0.0
     # Dictionaries: m6, m5, m4
     for keyname in (:m6, :m5, :m4)
@@ -219,24 +151,16 @@ function _score_tube_inner(snapshot, τ)
             end
         end
     end
-    # prime_paths — scan path array directly (no string join)
+    # prime_paths (array)
     if haskey(snapshot, :prime_paths)
         for item in snapshot[:prime_paths]
-            # Build region list directly from path segments
-            rs = Symbol[]
-            for seg in item["path"]
-                ss = string(seg)
-                for i in 1:length(REGIONS)
-                    if occursin(REGION_STRS_VEC[i], ss)
-                        push!(rs, REGIONS[i]); break
-                    end
-                end
+            path_str = join(item["path"], " → ")
+            rs = region_hits(path_str)
+            if !isempty(rs) && all(r -> r in τ, rs)
+                w = tryparse(Float64, string(item["weight"]))
+                w === nothing && (w = 1.0)
+                s += log(1 + abs(w))
             end
-            isempty(rs) && continue
-            all(r -> r in τ, rs) || continue
-            w = tryparse(Float64, string(item["weight"]))
-            w === nothing && (w = 1.0)
-            s += log(1 + abs(w))
         end
     end
     # prime_higher_ideals (total_support)
@@ -258,32 +182,28 @@ function _score_tube_inner(snapshot, τ)
             end
         end
     end
-    # cup product — use sparse dict instead of zeros(n,n) matrix
+    # cup product contribution
     if haskey(snapshot, :cup_product) && haskey(snapshot, :prime_higher_ideals)
         cup_const = snapshot[:cup_product]
-        ideals    = snapshot[:prime_higher_ideals]
-        n_ideal   = length(ideals)
-        # Sparse accumulation: only store non-zero entries
-        cup_sparse = Dict{Tuple{Int,Int}, Float64}()
+        ideals = snapshot[:prime_higher_ideals]
+        n_ideal = length(ideals)
+        cup_mat = zeros(Float64, n_ideal, n_ideal)
         for entry in cup_const
-            ii = entry["i"] + 1; jj = entry["j"] + 1
+            i = entry["i"] + 1
+            j = entry["j"] + 1
             coef = abs(entry["coeff"])
-            coef == 0 && continue
-            cup_sparse[(ii,jj)] = get(cup_sparse,(ii,jj),0.0) + coef
-            cup_sparse[(jj,ii)] = get(cup_sparse,(jj,ii),0.0) + coef
+            cup_mat[i, j] += coef
+            cup_mat[j, i] += coef
         end
-        # Pre-compute closure membership for this τ
-        in_tube = [all(sym in τ for sym in ideals[i]["closure"]) for i in 1:n_ideal]
-        for ((ii,jj), coef) in cup_sparse
-            ii >= jj && continue
-            (in_tube[ii] && in_tube[jj]) || continue
-            s += coef * (ideals[ii]["total_support"] + ideals[jj]["total_support"])
+        for i in 1:n_ideal, j in i+1:n_ideal
+            if all(sym in τ for sym in ideals[i]["closure"]) &&
+               all(sym in τ for sym in ideals[j]["closure"])
+                s += cup_mat[i, j] * (ideals[i]["total_support"] + ideals[j]["total_support"])
+            end
         end
     end
     return s / sqrt(length(τ))
 end
-
-end   # _score_tube_inner
 
 score_tubing(snapshot, T) = sum(score_tube(snapshot, τ) for τ in T)
 
@@ -292,17 +212,9 @@ score_tubing(snapshot, T) = sum(score_tube(snapshot, τ) for τ in T)
 ###############################################################
 
 function candidate_tubes(snapshot; topk=15)
-    sh = hash(snapshot)
-    if haskey(SNAP_CANDS_CACHE, sh)
-        c = SNAP_CANDS_CACHE[sh]
-        return c[1:min(topk, length(c))]
-    end
-    # Score all BASE_TUBES — uses cached score_tube values
     vals = [(score_tube(snapshot, τ), τ) for τ in BASE_TUBES]
     sort!(vals, by=x->x[1], rev=true)
-    all_cands = [vals[i][2] for i in 1:length(vals)]
-    SNAP_CANDS_CACHE[sh] = all_cands
-    return all_cands[1:min(topk, length(all_cands))]
+    [vals[i][2] for i in 1:min(topk, length(vals))]
 end
 
 ###############################################################
@@ -310,14 +222,12 @@ end
 ###############################################################
 
 function complete_maximal(T, cands, snapshot)
-    # Sets inside are never mutated — shallow copy is safe and much faster
-    cur = copy(T)
-    # Cands already sorted by candidate_tubes; re-sort only if needed
+    cur = deepcopy(T)
     vals = [(score_tube(snapshot, τ), τ) for τ in cands]
     sort!(vals, by=x->x[1], rev=true)
     for (_, τ) in vals
         if !(τ in cur)
-            T2 = vcat(cur, [τ])   # avoids [cur;[τ]] which copies cur
+            T2 = [cur; [τ]]
             if tubing_ok(T2)
                 push!(cur, τ)
             end
@@ -344,26 +254,29 @@ function tubing_signature(T)
 end
 
 function neighbors(T, snapshot)
-    cands = candidate_tubes(snapshot)   # cached per snapshot
-    out   = Vector{Vector{Set{Symbol}}}()
-    n     = length(T)
-
-    # remove — copy is safe: sets are immutable values
-    for i in 1:n
-        T2 = T[1:end .!= i]            # one allocation, no deepcopy
+    cands = candidate_tubes(snapshot)
+    out = Vector{Vector{Set{Symbol}}}()
+    # remove
+    for i in eachindex(T)
+        T2 = deepcopy(T)
+        deleteat!(T2, i)
         push!(out, complete_maximal(T2, cands, snapshot))
     end
     # add
     for τ in cands
-        τ in T && continue             # skip if already present
-        T2 = vcat(T, [τ])
-        tubing_ok(T2) && push!(out, complete_maximal(T2, cands, snapshot))
+        T2 = deepcopy(T)
+        push!(T2, τ)
+        if tubing_ok(T2)
+            push!(out, complete_maximal(T2, cands, snapshot))
+        end
     end
     # replace
-    for i in 1:n, τ in cands
-        T[i] === τ && continue
-        T2 = copy(T); T2[i] = τ
-        tubing_ok(T2) && push!(out, complete_maximal(T2, cands, snapshot))
+    for i in eachindex(T), τ in cands
+        T2 = deepcopy(T)
+        T2[i] = τ
+        if tubing_ok(T2)
+            push!(out, complete_maximal(T2, cands, snapshot))
+        end
     end
     # deduplicate
     seen = Set{String}()
@@ -387,14 +300,8 @@ function monodromy(snapshot)
     if haskey(snapshot, :prime_paths)
         A = zeros(Float64, N, N)
         for item in snapshot[:prime_paths]
-            # Direct path scan — no string join
-            rs = Symbol[]
-            for seg in item["path"]
-                ss = string(seg)
-                for ii in 1:length(REGIONS)
-                    occursin(REGION_STRS_VEC[ii], ss) && (push!(rs, REGIONS[ii]); break)
-                end
-            end
+            path_str = join(item["path"], " → ")
+            rs = region_hits(path_str)
             length(rs) < 2 && continue
             w = tryparse(Float64, string(item["weight"]))
             w === nothing && (w = 1.0)
@@ -411,40 +318,6 @@ function monodromy(snapshot)
     end
     return M
 end
-
-function monodromy_complex(snapshot, plucker_phase::Float64)
-    """
-    Complex monodromy for spectral radius analysis.
-    Directed edges twisted by Plücker phase — feeds into
-    IharaAssociahedronBridgeV2 complex transfer operator.
-    Kept separate from monodromy() which is used for transport.
-    """
-    A = zeros(ComplexF64, N, N)
-    if haskey(snapshot, :prime_paths)
-        for item in snapshot[:prime_paths]
-            # Direct path scan — no string join
-            rs = Symbol[]
-            for seg in item["path"]
-                ss = string(seg)
-                for ii in 1:length(REGIONS)
-                    occursin(REGION_STRS_VEC[ii], ss) && (push!(rs, REGIONS[ii]); break)
-                end
-            end
-            length(rs) < 2 && continue
-            w = tryparse(Float64, string(item["weight"]))
-            w === nothing && (w = 1.0)
-            φ = plucker_phase * log(1 + abs(w)) / (log(1 + abs(w)) + 1.0)
-            for i in 1:length(rs)-1
-                a = idx(rs[i]); b = idx(rs[i+1])
-                A[b, a] += log(1 + abs(w)) * exp(im * φ)   # directed + phase
-                A[a, b] += log(1 + abs(w)) * exp(-im * φ)  # conjugate reverse
-            end
-        end
-    end
-    # Spectral radius of this — feeds Klein spectral test
-    return A, maximum(abs.(eigvals(A)))
-end
-
 
 ###############################################################
 # NAVIGATOR STATE (beam search)
@@ -494,7 +367,7 @@ function beam_step!(S::Navigator, snapshot; width=7)
 
     push!(S.hist_score, bestscore)
     push!(S.hist_dom, argmax(S.transport))
-    push!(S.hist_tubes, copy(best))  # copy is safe: Sets are immutable values
+    push!(S.hist_tubes, deepcopy(best))
 end
 
 ###############################################################
@@ -502,59 +375,34 @@ end
 ###############################################################
 # We can't easily modify run_folder! without editing the module, so we'll write a wrapper
 function run_folder!(folder)
-    files = filter(f -> occursin(r"ainf_export_(?:\w+_)?\d+(?:\.\d+)?\.json", basename(f)),
-                   readdir(folder))
+    files = filter(f -> endswith(lowercase(f), ".json"), readdir(folder))
     sort!(files)
-    isempty(files) && error("No JSON files found in $folder")
-
-    # Use runner's SNAP_CACHE if available (avoids re-reading disk)
-    function _load(i, f)
-        if isdefined(Main, :SNAP_CACHE) && haskey(Main.SNAP_CACHE, i)
-            return Main.SNAP_CACHE[i]
-        end
-        return load_json(joinpath(folder, f))
-    end
-
-    snap0 = _load(1, files[1])
-    S     = Navigator(snap0)
-    n     = length(files)
-    prev_tube_sig = ""
-    n_tube_skipped = 0
-    t0 = time()
-
-    for (i, f) in enumerate(files)
-        snap = _load(i, f)
+    isempty(files) && error("No JSON files found")
+    snap0 = load_json(joinpath(folder, files[1]))
+    S = Navigator(snap0)
+    for f in files
+        snap = load_json(joinpath(folder, f))
         beam_step!(S, snap)
-
-        # Compact progress: only print when tubing changes or every 50 files
-        cur_sig = tubing_signature(S.hist_tubes[end])
-        tube_changed = cur_sig != prev_tube_sig
-        prev_tube_sig = cur_sig
-
-        if tube_changed || i % 50 == 0 || i == n
-            pp = get(snap, :prime_paths, [])
-            elapsed = round(time() - t0, digits=1)
-            @printf("FILE %d/%d [%.1fs]: %s\n", i, n, elapsed, f)
-            println("  prime_paths: ", length(pp),
-                    "  score: ", round(S.hist_score[end], digits=3),
-                    "  dominant: ", REGIONS[S.hist_dom[end]])
-            if !isempty(pp)
-                # top weight via linear scan (no sort)
-                best_w = maximum(Float64(get(p,"weight",0)) for p in pp)
-                println("  top weight: ", best_w)
+        # --- prime path info ---
+        pp = get(snap, :prime_paths, [])
+        println("FILE: $f")
+        println("  prime_paths count = ", length(pp))
+        if !isempty(pp)
+            # unique path signatures
+            unique_paths = Set()
+            for item in pp
+                push!(unique_paths, join(item["path"], "→"))
             end
-            if tube_changed
-                # Print only unique tubes (deduplicated)
-                uniq_tubes = unique(S.hist_tubes[end])
-                println("  tubing changed -> ", length(uniq_tubes), " unique tubes")
-            else
-                n_tube_skipped += 1
-            end
+            println("  unique prime path signatures = ", length(unique_paths))
+            first_pp = pp[1]
+            println("  top weight = ", first_pp["weight"])
+            println("  top path = ", join(first_pp["path"], " → "))
         end
+        println("  score = ", round(S.hist_score[end], digits=3))
+        println("  dominant = ", REGIONS[S.hist_dom[end]])
+        println("  best tubing = ", S.hist_tubes[end])
+        println()
     end
-
-    @printf("\nrun_folder! done: %d files, %d stable (%.1f%%), %.1fs\n",
-            n, n_tube_skipped, 100.0*n_tube_skipped/max(n,1), time()-t0)
     return S
 end
 ###############################################################

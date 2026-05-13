@@ -13,13 +13,15 @@ onehot_map = pd.read_csv(ONEHOT_ENCODED_REGIONS, sep=";")
 assert len(nodes) == len(onehot_map), "Node file and one-hot map row count mismatch!"
 
 # 4. Define target regions
-target_regions = {"CA1sp", "HPF", "BLA", "sAMY", "LA", "HY"}
+#target_regions = {"CA1sp", "HPF", "BLA", "sAMY", "LA", "HY"}
+#target_regions = {"CA1sp", "HPF", "BLA", "sAMY", "LA", "HY", "PAL"}
+#target_regions = {"CA1sp", "HPF", "BLA", "sAMY", "LA", "HY", "LSX"}
 #target_regions = {"CA1sp"}
 #target_regions = {"BLA"}
 #target_regions = {"HY"}
 #target_regions = {"PAL"}
 #target_regions = {"PAL", "LSX"}
-#target_regions = {"CA1sp", "HPF", "BLA", "sAMY", "LA", "HY", "PAL", "LSX"}
+target_regions = {"CA1sp", "HPF", "BLA", "sAMY", "LA", "HY", "PAL", "LSX"}
 
 # 5. Build a boolean mask for rows that have any of the target regions
 #    The one-hot columns are named e.g., "Region_Acronym_CA1"
@@ -56,8 +58,9 @@ filtered_nodes["regions"] = filtered_onehot.apply(get_regions, axis=1)
 #filtered_nodes.to_csv("node_regions_cleanHippAmygHypthalamus_BLA.csv", sep=";", index=False)
 #filtered_nodes.to_csv("node_regions_cleanHippAmygHypthalamus_HY.csv", sep=";", index=False)
 #filtered_nodes.to_csv("node_regions_cleanHippAmygHypthalamus_PAL.csv", sep=";", index=False)
-#filtered_nodes.to_csv("node_regions_cleanHippAmygHypthalamus_ALLWITH_PAL_LSX.csv", sep=";", index=False)
-filtered_nodes.to_csv("node_regions_cleanHippAmygHypthalamus.csv", sep=";", index=False)
+filtered_nodes.to_csv("node_regions_cleanHippAmygHypthalamus_ALLWITH_PAL_LSX.csv", sep=";", index=False)
+#filtered_nodes.to_csv("node_regions_cleanHippAmygHypthalamus_ANDPAL.csv", sep=";", index=False)
+#filtered_nodes.to_csv("node_regions_cleanHippAmygHypthalamus_ANDLSX.csv", sep=";", index=False)
 
 print(f"Done! Saved {len(filtered_nodes)} nodes (filtered to target regions).")
 

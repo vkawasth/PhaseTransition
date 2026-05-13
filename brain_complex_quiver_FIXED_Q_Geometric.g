@@ -1,0 +1,37 @@
+LoadPackage("qpa");
+k := GF(101);
+Q_vertices := ['CA1sp', 'BLA', 'HY', 'HPF', 'sAMY', 'LA'];
+Q_arrows := [["CA1sp", "HPF", "f_CA1sp_HPF"], ["HPF", "CA1sp", "f_HPF_CA1sp"], ["BLA", "LA", "f_BLA_LA"], ["BLA", "sAMY", "f_BLA_sAMY"], ["CA1sp", "sAMY", "f_CA1sp_sAMY"], ["HPF", "BLA", "f_HPF_BLA"], ["HPF", "sAMY", "f_HPF_sAMY"], ["LA", "BLA", "f_LA_BLA"], ["LA", "sAMY", "f_LA_sAMY"], ["sAMY", "BLA", "f_sAMY_BLA"], ["sAMY", "HPF", "f_sAMY_HPF"], ["sAMY", "LA", "f_sAMY_LA"], ["HY", "sAMY", "f_HY_sAMY"], ["sAMY", "HY", "f_sAMY_HY"]];
+Q := Quiver(Q_vertices, Q_arrows);
+A := PathAlgebra(k, Q);
+
+# Define idempotents
+for v in Q_vertices do
+  AssignGeneratorVariables(A);
+od;
+
+# Relations
+rels := [f_CA1sp_HPF*f_HPF_BLA - 104848401.13425562*f_CA1sp_BLA, 
+         f_CA1sp_HPF*f_HPF_sAMY - 1170812.3569494174*f_CA1sp_sAMY, 
+         f_CA1sp_sAMY*f_sAMY_BLA - 30972346.41954238*f_CA1sp_BLA, 
+         f_CA1sp_sAMY*f_sAMY_HY - 2150420.691102798*f_CA1sp_HY, 
+         f_CA1sp_sAMY*f_sAMY_HPF - 13.180013385681967*f_CA1sp_HPF, 
+         f_CA1sp_sAMY*f_sAMY_LA - 3837645.6392072425*f_CA1sp_LA, 
+         f_BLA_sAMY*f_sAMY_HY - 140249887.46525523*f_BLA_HY, 
+         f_BLA_sAMY*f_sAMY_HPF - 158032813.59355867*f_BLA_HPF, 
+         f_BLA_sAMY*f_sAMY_LA - 6400.817774470446*f_BLA_LA, 
+         f_BLA_LA*f_LA_sAMY - 3153.4477673061265*f_BLA_sAMY, 
+         f_HY_sAMY*f_sAMY_BLA - 200229022.78124848*f_HY_BLA, f_HY_sAMY*f_sAMY_HPF - 15664664.603696*f_HY_HPF, f_HY_sAMY*f_sAMY_LA - 24809487.331394095*f_HY_LA, f_HPF_CA1sp*f_CA1sp_sAMY - 34286.651618178694*f_HPF_sAMY, f_HPF_BLA*f_BLA_sAMY - 5840.548115620727*f_HPF_sAMY, f_HPF_BLA*f_BLA_LA - 22300673.575813632*f_HPF_LA, f_HPF_sAMY*f_sAMY_BLA - 345859.4076726519*f_HPF_BLA, f_HPF_sAMY*f_sAMY_HY - 13694885.258326963*f_HPF_HY, f_HPF_sAMY*f_sAMY_LA - 24439923.271064565*f_HPF_LA, f_sAMY_BLA*f_BLA_LA - 315586.00524592004*f_sAMY_LA, f_sAMY_HPF*f_HPF_CA1sp - 724216227.4352616*f_sAMY_CA1sp, f_sAMY_HPF*f_HPF_BLA - 44.61732771866818*f_sAMY_BLA, f_sAMY_LA*f_LA_BLA - 18747.14369369616*f_sAMY_BLA, f_LA_BLA*f_BLA_sAMY - 1876148.464992309*f_LA_sAMY, f_LA_sAMY*f_sAMY_BLA - 1076.6783916327693*f_LA_BLA, f_LA_sAMY*f_sAMY_HY - 11310444.292865729*f_LA_HY, f_LA_sAMY*f_sAMY_HPF - 12744547.371117042*f_LA_HPF, f_CA1sp_HPF*f_HPF_CA1sp - 16.983352661132812*e_CA1sp, f_HPF_CA1sp*f_CA1sp_HPF - 16.983352661132812*e_HPF, f_BLA_LA*f_LA_BLA - 2.064812660217285*e_BLA, f_BLA_sAMY*f_sAMY_BLA - 27.752208471298218*e_BLA, f_HPF_sAMY*f_sAMY_HPF - 37.5367151722312*e_HPF, f_LA_BLA*f_BLA_LA - 2.064812660217285*e_LA, f_LA_sAMY*f_sAMY_LA - 97.51983719691634*e_LA, f_sAMY_BLA*f_BLA_sAMY - 27.752208471298218*e_sAMY, f_sAMY_HPF*f_HPF_sAMY - 37.5367151722312*e_sAMY, f_sAMY_LA*f_LA_sAMY - 97.51983719691634*e_sAMY, f_HY_sAMY*f_sAMY_HY - 27.09020965732634*e_HY, f_sAMY_HY*f_HY_sAMY - 27.09020965732634*e_sAMY];
+
+I := Ideal(A, rels);
+B := A / I;
+
+Print("Algebra constructed. Dimension: ", Dimension(B), "\n");
+
+# Compute HH^2
+HH2 := HochschildCohomology(B,2);
+Print("HH^2 dimension: ", Dimension(HH2), "\n");
+
+# Cartan matrix
+C := CartanMatrix(B);
+Print("Cartan matrix: ", C, "\n");

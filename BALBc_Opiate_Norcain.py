@@ -37,6 +37,28 @@ warnings.filterwarnings('ignore')
 
 JULIA_AINF_SCRIPT = "/Users/vaw1/Downloads/OGB/connectome/phaseTransition_phaseTransition/curved_hh2_sparse_refactored.jl"
 
+# ── Two-phase A∞ computation strategy ────────────────────────────────────────
+# Phase 1 (CURRENT):  flat A∞ with m0=0  (fast, collects baseline data)
+#   - curved_hh2_sparse_refactored.jl runs WITHOUT filtration
+#   - collect ainf_export_*.json for n=6, 7P, 7L, 8
+#   - verify hinge chi_red=B_Ihara, Ramanujan, spectral rigidity
+#
+# Phase 2 (NEXT):     curved A∞ with m0≠0 + filtration
+#   - FilteredAInfAlgebra(lambda=1.0, energy_cutoff=1e-8)
+#   - m0_curvature encodes obstruction_deficit from blowup events
+#   - prevents combinatorial blow-up in C4/C5/C6 enumeration
+#   - bridges flat results to full MC equation b(mu)+1/2[mu,mu]=0
+#
+# Set AINF_PHASE=1 for current run (m0=0, no filtration)
+# Set AINF_PHASE=2 after blowup_table.tsv is collected (m0≠0)
+AINF_PHASE = 1   # ← change to 2 after Phase 1 data is collected
+
+# Filtration parameters for Phase 2
+FILTRATION_LAMBDA      = 1.0     # exponential decay rate
+FILTRATION_ENERGY_CUT  = 1e-8    # prune paths below this weight
+FILTRATION_MAX_LEN     = 20      # max path length in C4/C5/C6
+M0_CURVATURE_SCALE     = 0.1     # scale factor: m0[v] = scale * obstruction_deficit[v]
+
 class MilnorSequestrator:
     """Isolates the 'Milnor Node' singular points during algebraic failure."""
     def __init__(self, threshold=0.3):
@@ -198,6 +220,14 @@ class FullGraphDynamics:
         self.m4 = {}
         self.m5 = {}
         self.m6 = {}
+        # Phase tracking
+        self.ainf_phase          = AINF_PHASE   # 1=flat, 2=curved+filtered
+        self.m0_curvature        = {}            # vertex->float, zero in Phase 1
+        self.obstruction_deficit = {}            # vertex->float, from blowup events
+        self.filtration_active   = False         # set True when Phase 2 starts
+        # Phase 1 baseline data (collected during run, used to init Phase 2)
+        self.phase1_blowup_deficits = []         # obstruction_deficit per blowup
+        self.phase1_rho_ihara       = None       # spectral radius from Phase 1
         self.epsilon = 1.0
         self.lambda_val = 0.1
         self.nu = 0.0
@@ -229,6 +259,8 @@ class FullGraphDynamics:
         self.plucker_zeta_times = []    # dense time stamps
         self.plucker_zeta_mags = []     # dense magnitudes
         self.json_export_step_indices = []   # one entry per JSON export, in order
+        self.gr24_result = None
+        self.gr24_frames = []          # per-step SchoperFrame objects
 
     def compute_single_zeta(self, t, plucker_vec):
         """Compute a simple zeta magnitude from the current Plücker vector."""
@@ -284,6 +316,105 @@ class FullGraphDynamics:
         self.mesh_region_ids = region_id_array.astype(int)
         # Also store cell data if needed (e.g., edge_length)
         self.mesh_cell_data = mesh.cell_data
+
+    def schubert_cell_spectrum(self, L, t):
+        """
+        Project the 3x3 Lax matrix onto Gr(2,4) Schubert cell structure
+        and read off the local spectral hint from quantum cohomology of Gr(2,4).
+
+        The two 2x2 corner minors of L carry the Schubert cell coordinates.
+        The quantum cohomology eigenvalues of Gr(2,4) are 4th roots of unity
+        scaled by sqrt(2), giving the ghost signal norm 2*sqrt(2).
+
+        Returns dict with:
+          - schubert_stratum: which cell (0-4) the current state occupies
+          - qc_eigenvalue: nearest quantum cohomology eigenvalue
+          - ihara_prediction: predicted Ihara spectral radius at next blowup
+          - minor_top: top-left 2x2 minor (p12 coordinate)
+          - minor_bot: bottom-right 2x2 minor (p34 coordinate)
+          - ghost_proximity: distance to 2*sqrt(2) ghost signal
+        """
+        L = np.array(L, dtype=complex)
+
+        # Extract the two 2x2 corner minors
+        top = L[:2, :2]
+        bot = L[1:,  1:]
+        minor_top = np.linalg.det(top)  # p12 analog
+        minor_bot = np.linalg.det(bot)  # p34 analog
+        m22_pivot = L[1, 1]             # Schubert glue = b (sAMY)
+
+        # Identify Schubert stratum:
+        #   stratum 4 (open cell):  minor_top ≠ 0 AND minor_bot ≠ 0
+        #   stratum 3:              minor_top ≠ 0 AND minor_bot = 0
+        #   stratum 2 (boundary):   minor_top = 0 AND minor_bot ≠ 0
+        #   stratum 1:              pivot ≠ 0, both minors near 0
+        #   stratum 0 (basepoint):  all near 0
+        tol = 1e-6
+        if abs(minor_top) > tol and abs(minor_bot) > tol:
+            stratum = 4
+        elif abs(minor_top) > tol:
+            stratum = 3
+        elif abs(minor_bot) > tol:
+            stratum = 2
+        elif abs(m22_pivot) > tol:
+            stratum = 1
+        else:
+            stratum = 0
+
+        # Quantum cohomology eigenvalues of Gr(2,4): 4th roots of ±1, radius sqrt(2)
+        # These are the eigenvalues of c1* acting on H*(Gr(2,4))
+        qc_eigenvalues = np.array([
+             np.sqrt(2) * np.exp(1j * k * np.pi / 2) for k in range(4)
+        ])  # {sqrt(2), i*sqrt(2), -sqrt(2), -i*sqrt(2)}
+
+        # Map current state to Plucker coords
+        a    = np.real(L[0, 0])
+        b    = np.real(L[1, 1])
+        phi  = np.real(L[0, 1])
+        kappa= np.real(L[0, 2])
+        w12  = np.real(L[1, 2])
+
+        # Effective Plucker phase angle from the two dominant minors
+        phase_top = np.angle(complex(np.real(minor_top), np.imag(minor_top)))
+        phase_bot = np.angle(complex(np.real(minor_bot), np.imag(minor_bot)))
+        plucker_phase = 0.5 * (phase_top + phase_bot)  # average phase
+
+        # Find nearest QC eigenvalue by phase distance
+        phase_diffs = [abs(np.angle(qc) - plucker_phase) for qc in qc_eigenvalues]
+        nearest_idx = int(np.argmin(phase_diffs))
+        qc_nearest  = qc_eigenvalues[nearest_idx]
+
+        # Ihara prediction: |qc_nearest| / sqrt(q) where q depends on stratum
+        q_eff = {4: 5, 3: 4, 2: 3, 1: 2, 0: 1}.get(stratum, 5)
+        ihara_pred = abs(qc_nearest) / np.sqrt(q_eff)
+
+        # Ghost signal: norm of SO(4) monodromy should approach 2*sqrt(2)
+        # at a wall crossing; measure current proximity
+        from scipy.linalg import expm
+        Omega = np.array([
+            [ 0,   phi,  kappa, 0   ],
+            [-phi,  0,   w12,   0   ],
+            [-kappa,-w12, 0,    0   ],
+            [ 0,    0,   0,     0   ]
+        ])
+        nf = np.linalg.norm(Omega, 'fro') / np.sqrt(2)
+        ghost_target = 2 * np.sqrt(2)
+        ghost_proximity = abs(nf - ghost_target)
+
+        return {
+            "schubert_stratum":   stratum,
+            "qc_eigenvalue":      qc_nearest,
+            "qc_phase_idx":       nearest_idx,
+            "ihara_prediction":   ihara_pred,
+            "minor_top":          minor_top,
+            "minor_bot":          minor_bot,
+            "m22_pivot":          m22_pivot,
+            "plucker_phase":      plucker_phase,
+            "q_eff":              q_eff,
+            "ghost_proximity":    ghost_proximity,
+            "ghost_target":       ghost_target,
+            "at_wall_crossing":   ghost_proximity < 0.1,
+        }
     
     def compute_toda_parameters(self, history_window, dt):
         """
@@ -510,7 +641,7 @@ class FullGraphDynamics:
         return L
     
     # Call Julia for HH2
-    def call_julia_ainf(self, current_weights, region_name=None, step_index=None):
+    def call_julia_ainf(self, current_weights, region_name=None, step_index=None, filt_config_path=None):
         """
         current_weights : dict mapping (u,v) -> float
         Returns (m3, m4, m5, m6, HH2_dim, prime_paths, gerstenhaber, cup_product, annihilator, support, prime_ideals)
@@ -540,6 +671,9 @@ class FullGraphDynamics:
         output_file.close()
 
         # Build command
+        # Phase 2: append filtration config path if provided
+        if filt_config_path is not None and filt_config_path not in extra_args:
+            extra_args = list(extra_args) + [filt_config_path]
         cmd = ["julia", self.julia_ainf_script, mode, weights_file.name, output_file.name] + extra_args
         try:
             result = subprocess.run(cmd, check=True, capture_output=True, text=True)
@@ -673,6 +807,56 @@ class FullGraphDynamics:
     def compute_sheaf_Laplacian_eigenvalues(self, t, state):
         return self._sheafq.eigenvalues(t, state)
 
+
+    def call_julia_ainf_filtered(self, current_weights, step_index=None):
+        """
+        Phase 2: curved A∞ with FilteredAInfAlgebra.
+
+        Uses m0_curvature built from Phase 1 obstruction deficits.
+        Passes filtration parameters to curved_hh2_sparse_refactored.jl
+        via environment variables so the Julia script can activate
+        FilteredAInfAlgebra(lambda=FILTRATION_LAMBDA, ...).
+
+        Falls back to Phase 1 (flat) if filtration unavailable.
+        """
+        # Build m0_curvature from accumulated obstruction deficits
+        m0_curv = {}
+        for region, deficit in self.obstruction_deficit.items():
+            m0_curv[region] = M0_CURVATURE_SCALE * float(deficit) ** 0.5
+        self.m0_curvature = m0_curv
+
+        # Pass filtration config to Julia via JSON sidecar
+        import tempfile, json as _json
+        filt_config = {
+            "phase": 2,
+            "lambda": FILTRATION_LAMBDA,
+            "energy_cutoff": FILTRATION_ENERGY_CUT,
+            "max_path_len": FILTRATION_MAX_LEN,
+            "m0_curvature": m0_curv,
+        }
+        fd, filt_file = tempfile.mkstemp(suffix="_filt.json")
+        import os
+        os.close(fd)
+        with open(filt_file, "w") as fp:
+            _json.dump(filt_config, fp)
+
+        print(f"    [Phase 2] m0_curvature: {m0_curv}")
+        print(f"    [Phase 2] lambda={FILTRATION_LAMBDA} cutoff={FILTRATION_ENERGY_CUT}")
+
+        # Call Julia with filtration config path as extra argument
+        try:
+            result = self.call_julia_ainf(current_weights, step_index=step_index,
+                                          filt_config_path=filt_file)
+            self.filtration_active = True
+            return result
+        except Exception as e:
+            print(f"    [Phase 2] filtered call failed ({e}), falling back to Phase 1")
+            return self.call_julia_ainf(current_weights, step_index=step_index)
+        finally:
+            try:
+                os.remove(filt_file)
+            except Exception:
+                pass
 
     def recompute_ainf_from_julia(self, current_weights, output_json=None):
         """
@@ -1020,6 +1204,14 @@ class FullGraphDynamics:
 
             sheaf_evals = self.compute_sheaf_Laplacian_eigenvalues(t[i+1], state_wavelet)  # optional
             self.spectral_gap = sheaf_evals[1] if len(sheaf_evals) > 1 else 0.0
+
+            # Gr(2,4) schober projection (per-step)
+            _frame = gr24_step(self, i)
+            if _frame is not None:
+                self.gr24_frames.append(_frame)
+                if _frame.schubert.at_wall:
+                    # This is a Schubert wall crossing = blowup event
+                    self._log_blowup(i, _frame)
             
             # --------------------------------------------------------------
             # 4. Toda flow update (every step)
@@ -1027,6 +1219,24 @@ class FullGraphDynamics:
             # Build Lax matrix from wavelet state (3x3)
             L = self.build_lax_matrix(state_wavelet, np.mean(self.C[:, i+1]))
             L = self.toda_flow_step(L, dt_step, self.epsilon, self.lambda_val, self.nu, t[i+1])
+
+            schubert_data = self.schubert_cell_spectrum(L, t[i+1])
+            self.schubert_history.append({
+                "t": t[i+1],
+                "stratum": schubert_data["schubert_stratum"],
+                "ihara_pred": schubert_data["ihara_prediction"],
+                "ghost_proximity": schubert_data["ghost_proximity"],
+                "qc_phase_idx": schubert_data["qc_phase_idx"],
+                "at_wall": schubert_data["at_wall_crossing"],
+            })
+
+            # Log wall crossings — these are the Schubert cell boundary events
+            if schubert_data["at_wall_crossing"]:
+               print(f"  t={t[i+1]:.3f}: WALL CROSSING  stratum={schubert_data['schubert_stratum']}"
+               f"  |minor_top|={abs(schubert_data['minor_top']):.4f}"
+               f"  ihara_pred={schubert_data['ihara_prediction']:.4f}")
+
+
             target = [L[0,0], L[1,1], L[2,2]]
 
             for node in range(n_nodes):
@@ -1074,6 +1284,39 @@ class FullGraphDynamics:
                 self.toda_nu[i+1] = nu
                 self.prolate_ratio[i+1] = prolate_ratio
 
+                # ----------------------------------------------------------
+                # Prolate angle: deviation of leading eigenvector from sAMY.
+                # sAMY is index 3 in [CA1sp, HPF, BLA, sAMY, HY, LA].
+                # theta_prolate should equal phi_equil - 1/2 = 1/120 = 0.00833
+                # if the prolate and Bridgeland computations agree at equilibrium.
+                # Stored in self.prolate_theta for post-simulation analysis.
+                # ----------------------------------------------------------
+                sAMY_idx = 5   # index of sAMY in region list, const REGIONS = [:BLA, :CA1sp, :HPF, :HY, :LA, :sAMY] from region_six.csv file.
+                sAMY_axis = np.zeros(self.n_nodes)
+                if sAMY_idx < self.n_nodes:
+                    sAMY_axis[sAMY_idx] = 1.0
+                cos_angle = abs(np.dot(prolate_vec, sAMY_axis))
+                cos_angle = np.clip(cos_angle, -1.0, 1.0)
+                theta_prolate = np.arccos(cos_angle) / (2 * np.pi)  # in (0,1) units
+
+                # Store for export
+                if not hasattr(self, 'prolate_theta'):
+                    self.prolate_theta = []
+                    self.prolate_theta_times = []
+                self.prolate_theta.append(float(theta_prolate))
+                self.prolate_theta_times.append(float(t[i+1]))
+
+                # Print comparison against finite-size prediction 1/2 + 1/120
+                phi_target = 0.5 + 1/120   # = 0.50833 for 6-region system
+                deviation  = abs(theta_prolate - (phi_target - 0.5))
+                # Only print every 5 prolate updates to avoid log spam
+                if (i // int(0.5 / dt)) % 5 == 0:
+                    print(f"  [Prolate] t={t[i+1]:.1f}s  "
+                          f"ratio={prolate_ratio:.4f}  "
+                          f"theta={theta_prolate:.6f}  "
+                          f"1/120={1/120:.6f}  "
+                          f"diff={deviation:.6f}")
+
                 if use_toda_feedback:
                     for (u, v) in self.edges:
                         u_int = int(u)
@@ -1107,8 +1350,22 @@ class FullGraphDynamics:
                     print(f"    -> Generating blow‑up diagram for region {region_name}")
                     current_weights = {(u,v): self.edge_weights.get((u,v), 1.0) for (u,v) in self.edges}
                     try:
-                        self.call_julia_ainf(current_weights, region_name=region_name,  step_index=i+1)
-                        print(f"    -> Blow‑up diagram saved.")
+                        _r = self.call_julia_ainf(current_weights,
+                            region_name=region_name, step_index=i+1)
+                        print(f"    -> Blow-up diagram saved.")
+                        # Phase 1: collect obstruction_deficit for m0 init
+                        if _r is not None and len(_r) >= 4:
+                            _deficit = sum(
+                                abs(v) for mk in _r[:4]
+                                for d in (mk.values() if isinstance(mk, dict) else [])
+                                for v in (d.values() if isinstance(d, dict) else [d])
+                                if isinstance(v, (int, float)))
+                            self.phase1_blowup_deficits.append({
+                                "step": i+1, "t": float(t[i+1]),
+                                "region": region_name,
+                                "obstruction_deficit": float(_deficit)
+                            })
+                            self.obstruction_deficit[region_name] = float(_deficit)
                     except Exception as e:
                         print(f"    -> Diagram failed: {e}")
             # ------------------------------------------------------------
@@ -1144,10 +1401,19 @@ class FullGraphDynamics:
                     self.prime_zeta_values.append(zeta_mag)
                     self.prime_zeta_times.append(t[i+1])
 
-                print(f"  [A∞] Recomputing A∞ structure at t={t[i+1]:.2f}s (step {i})")
-                # Uncomment when Julia function is ready:
-                (self.m3, self.m4, self.m5, self.m6, HH2_dim, prime_paths,
-                    self.gerstenhaber, self.cup_product, self.annihilator, self.support, self.prime_ideals) = self.call_julia_ainf(current_weights,  step_index=i+1)
+                print(f"  [A∞ Phase {self.ainf_phase}] Recomputing at t={t[i+1]:.2f}s (step {i})")
+                if self.ainf_phase == 1:
+                    # Phase 1: flat A∞, m0=0, no filtration (fast baseline)
+                    (self.m3, self.m4, self.m5, self.m6, HH2_dim, prime_paths,
+                        self.gerstenhaber, self.cup_product, self.annihilator,
+                        self.support, self.prime_ideals) = self.call_julia_ainf(
+                            current_weights, step_index=i+1)
+                else:
+                    # Phase 2: curved A∞ with filtration (m0 from blowup deficits)
+                    (self.m3, self.m4, self.m5, self.m6, HH2_dim, prime_paths,
+                        self.gerstenhaber, self.cup_product, self.annihilator,
+                        self.support, self.prime_ideals) = self.call_julia_ainf_filtered(
+                            current_weights, step_index=i+1)
                 self.HH2_dim = HH2_dim
                 self.prime_paths = prime_paths
                                 
@@ -1194,8 +1460,10 @@ class FullGraphDynamics:
                 
                 # Then continue with the ancestor search or Rees blow‑up (inject norcain)
                 best_ancestor = None
-                for j in range(max(0, i-500), i, 50):
-                    if self.HH2[j] < 0.1 * self.HH2[i+1]:
+                _ancestor_threshold = self._hh2_global_median * 0.5
+                min_ancestor = max(50, i // 20)
+                for j in range(max(min_ancestor, i-500), i, 50):
+                    if self.HH2[j] < _ancestor_threshold and j > 50:
                         best_ancestor = j
                         break
                 if best_ancestor is not None:
@@ -1241,8 +1509,22 @@ class FullGraphDynamics:
                     print(f"    -> Generating blow‑up diagram for region {region_name}")
                     current_weights = {(u,v): self.edge_weights.get((u,v), 1.0) for (u,v) in self.edges}
                     try:
-                        self.call_julia_ainf(current_weights, region_name=region_name,  step_index=i+1)
-                        print(f"    -> Blow‑up diagram saved.")
+                        _r = self.call_julia_ainf(current_weights,
+                            region_name=region_name, step_index=i+1)
+                        print(f"    -> Blow-up diagram saved.")
+                        # Phase 1: collect obstruction_deficit for m0 init
+                        if _r is not None and len(_r) >= 4:
+                            _deficit = sum(
+                                abs(v) for mk in _r[:4]
+                                for d in (mk.values() if isinstance(mk, dict) else [])
+                                for v in (d.values() if isinstance(d, dict) else [d])
+                                if isinstance(v, (int, float)))
+                            self.phase1_blowup_deficits.append({
+                                "step": i+1, "t": float(t[i+1]),
+                                "region": region_name,
+                                "obstruction_deficit": float(_deficit)
+                            })
+                            self.obstruction_deficit[region_name] = float(_deficit)
                     except Exception as e:
                         print(f"    -> Diagram failed: {e}")
             
@@ -1254,10 +1536,52 @@ class FullGraphDynamics:
                 self.write_vtu(i+1)
             
 
+        # Gr(2,4) schober step function (imported once, used in loop)
+        try:
+            from gr24_schober_projection import gr24_step
+        except ImportError:
+            gr24_step = lambda obj, i: None   # graceful fallback if module missing
+
         # After loop, compute Plücker trajectory and phase transitions
         self.plucker = self.compute_plucker_trajectory()
         self.detect_phase_transitions()
+
+        # ── Phase 1 baseline export ──────────────────────────────────────────
+        # Save obstruction deficits collected during blowup events.
+        # These become the m0_curvature inputs for Phase 2.
+        if self.phase1_blowup_deficits:
+            import json as _json2
+            baseline = {
+                "ainf_phase": self.ainf_phase,
+                "n_blowup_events": len(self.phase1_blowup_deficits),
+                "blowup_deficits": self.phase1_blowup_deficits,
+                "m0_curvature_preview": {
+                    r: M0_CURVATURE_SCALE * float(d)**0.5
+                    for r, d in self.obstruction_deficit.items()
+                },
+                "filtration_ready": self.ainf_phase == 1 and len(self.phase1_blowup_deficits) > 0,
+                "next_step": "Set AINF_PHASE=2 and rerun to activate curved A∞ with filtration"
+            }
+            with open("phase1_baseline.json", "w") as fp:
+                _json2.dump(baseline, fp, indent=2)
+            print(f"  Phase 1 baseline saved: {len(self.phase1_blowup_deficits)} blowup deficits")
+            print(f"  m0_curvature preview: {baseline['m0_curvature_preview']}")
+            print(f"  -> To activate Phase 2: set AINF_PHASE=2 in BALBc_Opiate_Norcain.py")
         
+        # ── Gr(2,4) schober projection ──────────────────────────────────────
+        # Projects the full plucker_history onto Gr(2,4), identifying
+        # Schubert strata, wall crossings, QC eigenvalues, and Ihara hints.
+        # Requires plucker_history to be populated (done in loop above).
+        # gr24_result is None-safe: if plucker_history is empty it skips.
+        try:
+            from gr24_schober_projection import attach_to_simulation
+            if self.plucker_history:
+                self.gr24_result = attach_to_simulation(self)
+            else:
+                self.gr24_result = None
+        except ImportError:
+            self.gr24_result = None   # module not found, continue silently 
+
         return self.t, self.C, self.qA, self.qB, self.HH1, self.HH2
     
     
@@ -1282,6 +1606,22 @@ class FullGraphDynamics:
                 plucker[i] /= norm
         return plucker
     
+
+    def _log_blowup(self, step_idx, frame):
+        """Record a Schubert wall crossing detected by gr24_step."""
+        if not hasattr(self, 'gr24_blowup_log'):
+            self.gr24_blowup_log = []
+        t_val = float(self.t[step_idx]) if hasattr(self, 't') and step_idx < len(self.t) else float(step_idx)
+        self.gr24_blowup_log.append({
+            "step": step_idx, "t": t_val,
+            "stratum": frame.schubert.stratum,
+            "wall_type": frame.schubert.wall_type,
+            "klein_Q": float(frame.schubert.klein_Q),
+            "ghost_proximity": float(frame.ghost_proximity),
+            "qc_phase_idx": frame.qc_phase_idx,
+            "ihara_prediction": float(frame.ihara_prediction),
+        })
+
     def detect_phase_transitions(self):
         """Find times when consciousness drops below threshold, then trace reverse Hironaka path."""
         # Use Node 0 for detection (all nodes similar)
@@ -2562,7 +2902,7 @@ class ReesBlowUp:
 
         # Call Julia with --full mode
         try:
-            model.call_julia_ainf(current_weights, region_name=region_name,  step_index=model.t_idx)
+            model.call_julia_ainf(current_weights, region_name=region_name,  step_index=t_idx)
             print(f"    -> Blow‑up diagram saved for region {region_name}")
         except Exception as e:
             print(f"    -> Failed to generate blow‑up diagram: {e}")
@@ -2741,7 +3081,9 @@ def main():
     #coords = nodes_df[['pos_x', 'pos_y', 'pos_z']].values
     #dynamics.node_coords = coords
     dynamics.load_brain_mesh(BRAIN_FILE)
-    t, C, qA, qB, HH1, HH2 = dynamics.simulate()
+    t_span = (0, 800)  # Changed from (0, 25) or similar
+    dt = 0.02  # Keep same timestep for resolution
+    t, C, qA, qB, HH1, HH2 = dynamics.simulate(t_span=t_span, dt=dt)
     t_full, C_full, qA_full, qB_full, HH1_full, HH2_full = t, C, qA, qB, HH1, HH2
 
     n_nodes = dynamics.n_nodes
@@ -2869,6 +3211,30 @@ def main():
     with open("plucker_zeta_dense.json", "w") as f:
         json.dump(dense_zeta_data, f)
     print("Saved dense Plücker zeta time series to plucker_zeta_dense.json")
+
+    # Save prolate angle time series
+    # theta_prolate is the angle between the prolate eigenvector and sAMY axis.
+    # At equilibrium this should equal 1/120 = 0.00833 (finite-size correction).
+    # Comparing theta_prolate to phi_equil - 1/2 from Bridgeland analysis
+    # tests whether the physical and algebraic computations agree.
+    if hasattr(dynamics, 'prolate_theta') and dynamics.prolate_theta:
+        prolate_data = {
+            "theta": dynamics.prolate_theta,
+            "times": dynamics.prolate_theta_times,
+            "mean_theta": float(np.mean(dynamics.prolate_theta)),
+            "std_theta":  float(np.std(dynamics.prolate_theta)),
+            "finite_size_prediction": 1/120,
+            "deviation_from_prediction": float(
+                abs(np.mean(dynamics.prolate_theta) - 1/120)),
+            "n_regions": dynamics.n_nodes,
+            "phi_equil_prediction": 0.5 + 1/120,
+        }
+        with open("prolate_theta.json", "w") as f:
+            json.dump(prolate_data, f)
+        print(f"Saved prolate_theta.json  "
+              f"mean={prolate_data['mean_theta']:.6f}  "
+              f"prediction=1/120={1/120:.6f}  "
+              f"diff={prolate_data['deviation_from_prediction']:.6f}")
     # Save result
     plot_unstable_paths(dynamics, nav, best_path)
 
@@ -3180,6 +3546,24 @@ def main():
             print("Saved prime_zeta.json from consciousness transitions.")
         else:
             print("No prime zeta data to save (neither blow‑up nor consciousness transitions).")
+
+    # Full Gr(2,4) projection result
+    result = dynamics.gr24_result
+    if result is not None:
+        print(f"Wall crossings: {result.n_wall_crossings}")
+        if len(result.frames) > 100:
+            frame = result.frames[100]
+            print(f"Stratum: {frame.schubert.stratum}")
+            print(f"Klein Q: {frame.schubert.klein_Q:.6f}")
+            print(f"Ihara hint: {frame.ihara_prediction:.4f}")
+        try:
+            from gr24_schober_projection import plot_gr24_projection
+            plot_gr24_projection(result, save_path="gr24_projection.png")
+        except Exception as _e:
+            print(f"gr24 plot skipped: {_e}")
+    else:
+        print("gr24_result not available (module not found or plucker_history empty)")
+
     
     print("\n" + "="*100)
     print(" " * 40 + "ANALYSIS COMPLETE")
