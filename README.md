@@ -233,6 +233,10 @@ MAGMA ALgebraic computations amoung regions adding PAL, LSX and PAL+LSX
 
 <img width="804" height="991" alt="Screenshot 2026-05-09 at 3 50 10 PM" src="https://github.com/user-attachments/assets/bd1633b0-8c55-4538-b199-624a76425cde" />
 
+There is also a theorem regarding deformation bounds, wait for updated writeup as MAGMA needs to verify few key points.
+
+
+
 
 
 
