@@ -39,7 +39,7 @@ using .ReesGrassmannBridge
 # Regions : ['BLA', 'CA1sp', 'HPF', 'HY', 'LA', 'LSX', 'sAMY']
 # Regions: ['BLA', 'CA1sp', 'HPF', 'HY', 'LA', 'LSX', 'PAL', 'sAMY']
 # ***************************************************************************
-const REGIONS = [:CA1sp, :BLA, :HY, :HPF, :sAMY, :LA]
+const REGIONS = [:BLA, :CA1sp, :HPF, :HY, :LA, :LSX, :sAMY]
 load_json(file) = JSON3.read(read(file,String))
 
 # ============================================================================
@@ -971,7 +971,7 @@ end
 
 # Helper function to infer region from snapshot
 function infer_region_from_snapshot(snap)
-    REGIONS = [:CA1sp, :BLA, :HY, :HPF, :sAMY, :LA]
+    REGIONS = [:BLA, :CA1sp, :HPF, :HY, :LA, :LSX, :sAMY]
     
     # Try explicit region field
     if haskey(snap, :region)

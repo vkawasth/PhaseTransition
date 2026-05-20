@@ -245,7 +245,7 @@ function plot4_zeta_mismatch(zeta_df)
     walls   = "wall_crossing" in names(zeta_df) ?
               zeta_df[!,"wall_crossing"] : fill(false,n)
     mm_c    = min.(mm, 10.0)
-    wids    = findall(x->x=="true"||x==true||x==1, walls)
+    wids    = findall(x->lowercase(string(x))=="true"||x==true||x==1, walls)
     bass_ok = count(x->isfinite(x)&&x<0.1, mm)
 
     fig = Figure(size=(1200,500))
@@ -286,6 +286,7 @@ end
 
 function plot5_plucker_norm(plucker_data)
     plucker_data === nothing && return
+    haskey(plucker_data, "magnitudes") || (println("  plucker_zeta_dense.json: no 'magnitudes' key — skipping plot5"); return)
     mags = Float64.(plucker_data["magnitudes"])
     n    = length(mags)
 
@@ -326,9 +327,11 @@ function plot6_ihara_poles(poles_data)
     isempty(poles) && return
     re_ = Float64[Float64(p["re"])     for p in poles]
     im_ = Float64[Float64(p["im"])     for p in poles]
-    r_  = Float64[Float64(p["radius"]) for p in poles]
+    # Use |re + i*im| as the radius so the plot uses the actual B_Ihara
+    # eigenvalue magnitude (independent of ihara_radius scaling from curved_hh2).
+    r_  = sqrt.(re_.^2 .+ im_.^2)
     s_  = Int[Int(p["snapshot"])       for p in poles]
-    rb  = mean(Float64.(poles_data["ramanujan_bounds"]))
+    rb  = mean(Float64.(poles_data["ramanujan_bounds"]))   # sqrt(q_max) = 2.0
 
     fig = Figure(size=(800,700))
     ax  = Axis(fig[1,1], title="Ihara poles", xlabel="Re(λ)",
@@ -401,10 +404,15 @@ function plot7_sphere_limit(chambers, plucker_traj)
     if plucker_traj !== nothing
         q12_ = Float64.(plucker_traj["q12"])
         q13_ = Float64.(plucker_traj["q13"])
-        norms_ = sqrt.(q12_.^2 .+ q13_.^2)
+        # Full Plücker norm for colouring
+        q14_ = haskey(plucker_traj,"q14") ? Float64.(plucker_traj["q14"]) : zeros(length(q12_))
+        q23_ = haskey(plucker_traj,"q23") ? Float64.(plucker_traj["q23"]) : zeros(length(q12_))
+        q24_ = haskey(plucker_traj,"q24") ? Float64.(plucker_traj["q24"]) : zeros(length(q12_))
+        q34_ = haskey(plucker_traj,"q34") ? Float64.(plucker_traj["q34"]) : zeros(length(q12_))
+        norms_ = sqrt.(q12_.^2 .+ q13_.^2 .+ q14_.^2 .+ q23_.^2 .+ q24_.^2 .+ q34_.^2)
         nm = maximum(norms_)
 
-        ax3 = Axis(fig[2,1], title="C — Plücker trajectory q12 vs q13",
+        ax3 = Axis(fig[2,1], title="C — Plücker trajectory q12 vs q13 (coloured by ‖q‖)",
                    xlabel="q12", ylabel="q13")
         scatter!(ax3, q12_, q13_, color=norms_./max(nm,1e-10),
                  colormap=:viridis, markersize=3, alpha=0.6)
@@ -440,6 +448,100 @@ function plot7_sphere_limit(chambers, plucker_traj)
     println("✓ plot7_sphere_limit.png")
 end
 
+# ── PLOT 8 (NEW post curved_hh2 fix) ──────────────────────────────────────
+# ihara_radius trajectory vs Klein constraint K — the key P1/P2/P3 test
+# quantity. Only meaningful after rerunning with fixed curved_hh2.
+
+function plot8_ihara_radius(plucker_traj, ainf_folder=".")
+    # Load ihara_radius per snapshot from ainf_export files
+    ainf_files = sort(filter(f -> startswith(basename(f),"ainf_export") &&
+                                  endswith(f,".json"),
+                             readdir(ainf_folder, join=true)))
+    isempty(ainf_files) && (println("  No ainf_export files — skipping plot8"); return)
+
+    rho_vals = Float64[]
+    rho_norm_vals = Float64[]
+    q_vals   = Float64[]
+    for fpath in ainf_files
+        try
+            snap = JSON3.read(read(fpath, String))
+            push!(rho_vals,      Float64(get(snap, "ihara_radius",      0.0)))
+            push!(rho_norm_vals, Float64(get(snap, "ihara_radius_norm", 0.0)))
+            push!(q_vals,        Float64(get(snap, "ihara_radius_q",    0.0)))
+        catch
+            push!(rho_vals, NaN); push!(rho_norm_vals, NaN); push!(q_vals, NaN)
+        end
+    end
+    n_snaps = length(rho_vals)
+    n_snaps == 0 && return
+
+    # Klein constraint K from plucker_trajectory
+    K_vals = fill(NaN, n_snaps)
+    if plucker_traj !== nothing
+        try
+            q12 = Float64.(plucker_traj["q12"]); q13 = Float64.(plucker_traj["q13"])
+            q14 = haskey(plucker_traj,"q14") ? Float64.(plucker_traj["q14"]) : zeros(length(q12))
+            q23 = Float64.(plucker_traj["q23"]); q24 = Float64.(plucker_traj["q24"])
+            q34 = Float64.(plucker_traj["q34"])
+            K_abs = abs.(q12.*q34 .- q13.*q24 .+ q14.*q23)
+            norms_sq = q12.^2 .+ q13.^2 .+ q14.^2 .+ q23.^2 .+ q24.^2 .+ q34.^2
+            K_raw = K_abs ./ max.(norms_sq, 1e-10)
+            p_steps = haskey(plucker_traj,"steps") ? Int.(plucker_traj["steps"]) : collect(1:length(K_raw))
+            for s in 1:n_snaps
+                K_vals[s] = K_raw[argmin(abs.(p_steps .- s))]
+            end
+        catch; end
+    end
+
+    fig = Figure(size=(1300, 900))
+
+    ax1 = Axis(fig[1,1:2],
+               title="A — ihara_radius (raw A∞ transfer amplitude) over snapshots",
+               xlabel="Snapshot", ylabel="ρ(T_raw)")
+    lines!(ax1, 1:n_snaps, rho_vals, color=:steelblue, linewidth=2, label="ihara_radius")
+    rho_finite = filter(isfinite, rho_vals)
+    if !isempty(rho_finite)
+        hlines!(ax1, [mean(rho_finite)], color=:green, linestyle=:dot,
+                linewidth=1.5, label=@sprintf("mean=%.4f", mean(rho_finite)))
+        text!(ax1, n_snaps*0.05, maximum(rho_finite)*0.9,
+              text=@sprintf("std=%.4f  CV=%.4f", std(rho_finite),
+                            std(rho_finite)/max(mean(rho_finite),1e-10)),
+              fontsize=12, color=:steelblue)
+    end
+    try axislegend(ax1, position=:rt) catch; end
+
+    ax2 = Axis(fig[2,1],
+               title="B — Klein constraint K (want → 0)",
+               xlabel="Snapshot", ylabel="|K| (normalised)")
+    lines!(ax2, 1:n_snaps, K_vals, color=:darkorange, linewidth=2)
+    hlines!(ax2, [0.0], color=:black, linestyle=:dot)
+    K_finite = filter(isfinite, K_vals)
+    !isempty(K_finite) &&
+        text!(ax2, n_snaps*0.05, maximum(K_finite)*0.85,
+              text=@sprintf("range [%.4f, %.4f]", minimum(K_finite), maximum(K_finite)),
+              fontsize=12, color=:darkorange)
+
+    ax3 = Axis(fig[2,2],
+               title="C — ihara_radius vs K (want: ρ→√q as K→0)",
+               xlabel="|K|", ylabel="ρ(T_raw)")
+    vld = findall(i -> isfinite(K_vals[i]) && isfinite(rho_vals[i]), 1:n_snaps)
+    if !isempty(vld)
+        scatter!(ax3, K_vals[vld], rho_vals[vld],
+                 color=collect(vld), colormap=:viridis, markersize=5, alpha=0.6)
+        # Pythagorean curve: ρ² = q - K*q → ρ = √(q*(1-K))
+        q_mean = mean(filter(isfinite, q_vals))
+        if isfinite(q_mean) && q_mean > 0
+            Kr = range(0.0, max(maximum(K_vals[vld])*0.9, 1e-6), length=200)
+            lines!(ax3, Kr, sqrt.(max.(q_mean .* (1.0 .- Kr), 0)),
+                   color=:red, linestyle=:dash, linewidth=2, label="√(q·(1-K))")
+            try axislegend(ax3) catch; end
+        end
+    end
+
+    save("plot8_ihara_radius.png", fig)
+    println("✓ plot8_ihara_radius.png")
+end
+
 # ── MAIN ─────────────────────────────────────────────────────────────────
 
 println("="^60)
@@ -457,9 +559,9 @@ println("chambers.tsv:           ", chambers     === nothing ? "✗" : "✓ $(nr
 println("zeta_comparison.tsv:    ", zeta_df      === nothing ? "✗" : "✓ $(nrow(zeta_df)) rows")
 println("plucker_zeta_dense.json:", plucker_data === nothing ? "✗" : "✓")
 println("ihara_poles.json:       ", poles_data   === nothing ? "✗" : "✓")
-println("plucker_phase.json:     ", phase_data   === nothing ? "✗ run generate_plucker_phase.jl" :
-        _lbl_unique_count = string(get(phase_data, "unique_count", "?")),
-        "✓ $(_lbl_unique_count) unique phases")
+_pf_n = phase_data === nothing ? "" : string(get(phase_data, "unique_count", "?"))
+println("plucker_phase.json:     ", phase_data === nothing ? "✗ run generate_plucker_phase.jl" :
+        "✓ $_pf_n unique phases")
 println("plucker_trajectory.json:", plucker_traj === nothing ? "✗" : "✓")
 println()
 
@@ -470,8 +572,10 @@ plot4_zeta_mismatch(zeta_df)
 plot5_plucker_norm(plucker_data)
 plot6_ihara_poles(poles_data)
 plot7_sphere_limit(chambers, plucker_traj)
+plot8_ihara_radius(plucker_traj, ".")
 
 println()
-println("Saved: plot1–plot7")
-println("  plot7_sphere_limit.png — NEW: sphere limit / proof chain")
+println("Saved: plot1–plot8")
+println("  plot7_sphere_limit.png — sphere limit / proof chain")
+println("  plot8_ihara_radius.png — ihara_radius vs K (post curved_hh2 fix)")
 println("="^60)

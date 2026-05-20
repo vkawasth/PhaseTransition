@@ -1,4 +1,4 @@
-using LinearAlgebra, SparseArrays
+using LinearAlgebra, SparseArrays, Statistics
 using WriteVTK
 using WriteVTK.VTKCellTypes: VTK_LINE, VTK_VERTEX
 using DataFrames
@@ -6,6 +6,23 @@ using JSON3
 using CSV
 using StaticArrays   # zero-alloc 4x4 monodromy (run_iharaSingV2 integration)
 
+
+#=======================================================================================
+
+
+The winding number w may differ from the previous w=±6 since the phase trajectory 
+is computed from prime_path weights, which will now influence ihara_radius differently. 
+The per-loop check will still confirm as long as Phi_KS = λ^w — which it will by 
+construction. The key question is whether |w| > 0 (net winding exists).
+What to watch for in the Klein pillars
+P1/P2/P3 should now show genuine variation in ihara_radius across snapshots — the 
+regression β should move away from 0 toward 1 if K and ρ are actually correlated 
+in the dynamics. If β is still near 0 after the rerun, it means the run has 
+already reached equilibrium (K ≈ 0, ρ stable) and the pillars are measuring a 
+settled system rather than an approach — which is also a valid physics result, 
+just interpreted differently.
+
+=======================================================================================#
 # Arpack: sparse SVD keeps d0/d1/d2 sparse through HH2 computation.
 # Install: ] add Arpack
 using Arpack: svds
@@ -109,52 +126,52 @@ end
 const NODES_FILE = "./node_regions_clean.csv"
 const EDGES_FILE = "/Users/vaw1/Downloads/OGB/BALBc_no1_raw/BALBc-no1_iso3um_stitched_segmentation_bulge_size_3.0_edges.csv"
 const FULL_BRAIN_VTU = "./nodes_edges_filtered.vtp"
-# Region list (6‑region model)
-const nodes = [:CA1sp, :HPF, :BLA, :sAMY, :HY, :LA]
-region_to_idx = Dict("CA1sp"=>0, "HPF"=>1, "BLA"=>2, "sAMY"=>3, "HY"=>4, "LA"=>5)
-# Original relations as a string (static)
-const relations_str = """
-f_CA1sp_HPF*f_HPF_BLA - 104848401.13425562*f_CA1sp_BLA
-f_CA1sp_HPF*f_HPF_sAMY - 1170812.3569494174*f_CA1sp_sAMY
-f_CA1sp_sAMY*f_sAMY_BLA - 30972346.41954238*f_CA1sp_BLA
-f_CA1sp_sAMY*f_sAMY_HY - 2150420.691102798*f_CA1sp_HY
-f_CA1sp_sAMY*f_sAMY_HPF - 13.180013385681967*f_CA1sp_HPF
-f_CA1sp_sAMY*f_sAMY_LA - 3837645.6392072425*f_CA1sp_LA
-f_BLA_sAMY*f_sAMY_HY - 140249887.46525523*f_BLA_HY
-f_BLA_sAMY*f_sAMY_HPF - 158032813.59355867*f_BLA_HPF
-f_BLA_sAMY*f_sAMY_LA - 6400.817774470446*f_BLA_LA
-f_BLA_LA*f_LA_sAMY - 3153.4477673061265*f_BLA_sAMY
-f_HY_sAMY*f_sAMY_BLA - 200229022.78124848*f_HY_BLA
-f_HY_sAMY*f_sAMY_HPF - 15664664.603696*f_HY_HPF
-f_HY_sAMY*f_sAMY_LA - 24809487.331394095*f_HY_LA
-f_HPF_CA1sp*f_CA1sp_sAMY - 34286.651618178694*f_HPF_sAMY
-f_HPF_BLA*f_BLA_sAMY - 5840.548115620727*f_HPF_sAMY
-f_HPF_BLA*f_BLA_LA - 22300673.575813632*f_HPF_LA
-f_HPF_sAMY*f_sAMY_BLA - 345859.4076726519*f_HPF_BLA
-f_HPF_sAMY*f_sAMY_HY - 13694885.258326963*f_HPF_HY
-f_HPF_sAMY*f_sAMY_LA - 24439923.271064565*f_HPF_LA
-f_sAMY_BLA*f_BLA_LA - 315586.00524592004*f_sAMY_LA
-f_sAMY_HPF*f_HPF_CA1sp - 724216227.4352616*f_sAMY_CA1sp
-f_sAMY_HPF*f_HPF_BLA - 44.61732771866818*f_sAMY_BLA
-f_sAMY_LA*f_LA_BLA - 18747.14369369616*f_sAMY_BLA
-f_LA_BLA*f_BLA_sAMY - 1876148.464992309*f_LA_sAMY
-f_LA_sAMY*f_sAMY_BLA - 1076.6783916327693*f_LA_BLA
-f_LA_sAMY*f_sAMY_HY - 11310444.292865729*f_LA_HY
-f_LA_sAMY*f_sAMY_HPF - 12744547.371117042*f_LA_HPF
-f_CA1sp_HPF*f_HPF_CA1sp - 16.983352661132812*e_CA1sp
-f_HPF_CA1sp*f_CA1sp_HPF - 16.983352661132812*e_HPF
-f_BLA_LA*f_LA_BLA - 2.064812660217285*e_BLA
-f_BLA_sAMY*f_sAMY_BLA - 27.752208471298218*e_BLA
-f_HPF_sAMY*f_sAMY_HPF - 37.5367151722312*e_HPF
-f_LA_BLA*f_BLA_LA - 2.064812660217285*e_LA
-f_LA_sAMY*f_sAMY_LA - 97.51983719691634*e_LA
-f_sAMY_BLA*f_BLA_sAMY - 27.752208471298218*e_sAMY
-f_sAMY_HPF*f_HPF_sAMY - 37.5367151722312*e_sAMY
-f_sAMY_LA*f_LA_sAMY - 97.51983719691634*e_sAMY
-f_HY_sAMY*f_sAMY_HY - 27.09020965732634*e_HY
-f_sAMY_HY*f_HY_sAMY - 27.09020965732634*e_sAMY
-"""
-"""
+# ── Graph algebra configuration ─────────────────────────────────────────────
+# Loaded dynamically from graph_algebra.json based on graph_type argument.
+# To switch graphs: pass graph_type as ARGS[4] (e.g. "Q_7P", "Q_7L", "Q_8")
+# Do NOT edit nodes/relations here — edit graph_algebra.json instead.
+
+const _GRAPH_ALGEBRA_FILE = joinpath(@__DIR__, "graph_algebra.json")
+
+function load_graph_algebra(graph_type::String)
+    isfile(_GRAPH_ALGEBRA_FILE) || error(
+        "graph_algebra.json not found at $(_GRAPH_ALGEBRA_FILE)\n" *
+        "Place graph_algebra.json in the same folder as this script.")
+    all_graphs = JSON3.read(read(_GRAPH_ALGEBRA_FILE, String))
+    haskey(all_graphs, graph_type) || error(
+        "Graph '$graph_type' not found in graph_algebra.json. " *
+        "Available: $(join(keys(all_graphs), ", "))")
+    g = all_graphs[graph_type]
+    nodes_sym  = Symbol.(String.(g["nodes"]))
+    ridx       = Dict(String(k) => Int(v) for (k,v) in pairs(g["region_to_idx"]))
+    relations  = join(String.(g["relations"]), "\n")
+    desc       = String(g["description"])
+    println("[graph_algebra] Loaded $graph_type: $(length(nodes_sym)) nodes, " *
+            "$(length(g["relations"])) relations  ($desc)")
+    return nodes_sym, ridx, relations
+end
+
+# ── Parse graph_type from ARGS early (needed for const nodes) ────────────────
+const _KNOWN_GRAPHS = ("Q_6", "Q_7P", "Q_7L", "Q_8")
+const _graph_type_global = begin
+    local gt = "Q_7P"  # default
+    for a in ARGS
+        if a ∈ _KNOWN_GRAPHS
+            gt = a
+            break
+        end
+    end
+    gt
+end
+
+# Load algebra for this graph type
+const _nodes_loaded, _ridx_loaded, _relations_loaded = load_graph_algebra(_graph_type_global)
+
+# Expose as module-level constants expected by the rest of the script
+const nodes        = _nodes_loaded
+const region_to_idx = _ridx_loaded
+const relations_str = _relations_loaded
+
 # ===========================================================================================================================================================
 # Function                      Arity                                Role                                      Use for prime paths?
 # ===========================================================================================================================================================
@@ -168,12 +185,11 @@ f_sAMY_HY*f_HY_sAMY - 27.09020965732634*e_sAMY
 #                                                                                                                (curved A∞). You don’t (m0 is zero).
 # ===========================================================================================================================================================
 
-"""
 # Helper: Extract weights from the CSV structure
 # We use 'volume' as the default weight, but you can change to 'avgCrossSection'
 function build_geometric_weight_map(nodes, edges_df)
     # Map node index (0‑based) to node symbol
-    node_symbols = [:CA1sp, :HPF, :BLA, :sAMY, :HY, :LA]
+    node_symbols = nodes  # loaded from graph_algebra.json per graph
     node_to_sym = Dict(i-1 => node_symbols[i] for i in 1:length(node_symbols))
     
     geo_weight = Dict{Tuple{Symbol,Symbol}, Float64}()
@@ -314,7 +330,8 @@ function get_region_weight_map(edges_df::DataFrame, nodes_df::DataFrame)
         raw_reg = string(r[Symbol(region_col)])
         
         # Clean the string ['region'] or similar formatting
-        clean_reg = replace(raw_reg, r"['\[\] ]" => "")
+        clean_reg = replace(replace(replace(replace(raw_reg,
+                    "'" => ""), "[" => ""), "]" => ""), " " => "")
         first_reg = split(clean_reg, ',')[1]
         
         # Ensure we don't have an empty string
@@ -660,7 +677,7 @@ function compute_cup_constants(
     for i in 1:n1, j in 1:n1
         cp     = shifted_cup_product(deriv_basis[i], deriv_basis[j], 2, 2, ctx)
         v      = cochain_to_vector(cp, K, S)
-        coeffs = H \ v
+        coeffs = ldiv(H, v)
         for k in 1:n2
             abs(coeffs[k]) > 1e-12 && (cup_constants[(i,j,k)] = coeffs[k])
         end
@@ -688,7 +705,7 @@ function compute_bracket_constants(
     for i in 1:n, j in 1:n
         br     = shifted_bracket(deriv_basis[i], deriv_basis[j], 2, 2, ctx)
         v      = cochain_to_vector(br, K, S)
-        coeffs = H \ v
+        coeffs = ldiv(H, v)
         for k in 1:n
             abs(coeffs[k]) > 1e-12 && (C[(i,j,k)] = coeffs[k])
         end
@@ -790,31 +807,55 @@ function derivation_constraint_matrix(basis::Vector{Symbol}, idempotents::Vector
 end
 
 function numeric_nullspace(M; atol=1e-10)
-    # Fix 2: use sparse SVD (Arpack.svds) instead of converting to dense.
-    # For the derivation constraint matrix (n^2 x n^2), this avoids a
-    # potentially enormous dense allocation.
+    # Robust nullspace: handles NaN/Inf from large m0_curvature,
+    # LAPACKException from ill-conditioned matrices, scalar V from svds.
     m, n = size(M)
-    k = min(m, n, 40)   # probe up to 40 singular values
+    k = min(m, n, 40)
     if k < 1
         return zeros(n, 0)
     end
+
+    # Guard: replace NaN/Inf with 0 before any linear algebra
+    Mc_dense = Matrix(M)
+    if any(!isfinite, Mc_dense)
+        Mc_dense[.!isfinite.(Mc_dense)] .= 0.0
+    end
+
+    # Try sparse SVD first (Arpack)
     try
-        _, s, V = svds(M; nsv=k)
-        # svds returns singular values in ASCENDING order (opposite of svd)
+        _, s, V = svds(sparse(Mc_dense); nsv=k)
         r = sum(s .> atol)
         if r == n
             return zeros(n, 0)
         end
+        # svds may return scalar V when matrix degenerates
+        if isa(V, Number)
+            return r >= 1 ? zeros(n, 0) : reshape([V], n, 1)
+        end
+        if ndims(V) == 1
+            V = reshape(V, length(V), 1)
+        end
         return V[:, r+1:end]
     catch
-        # Arpack can fail on near-zero or badly conditioned matrices;
-        # fall back to dense SVD only in that case.
-        F = svd(Matrix(M))
+    end
+
+    # Fall back to dense SVD with clamped matrix
+    try
+        clamp_val = 1e15
+        Mc_dense = clamp.(Mc_dense, -clamp_val, clamp_val)
+        F = svd(Mc_dense)
         r = sum(F.S .> atol)
-        if r == size(M, 2)
-            return zeros(size(M, 2), 0)
+        if r >= size(Mc_dense, 2)
+            return zeros(size(Mc_dense, 2), 0)
         end
-        return F.V[:, r+1:end]
+        V = F.V
+        if ndims(V) == 1
+            V = reshape(V, length(V), 1)
+        end
+        return V[:, r+1:end]
+    catch e
+        @warn "numeric_nullspace: SVD failed ($e), returning empty nullspace"
+        return zeros(n, 0)
     end
 end
 
@@ -980,7 +1021,7 @@ function brace_composition(f::Dict{Tuple, LinComb}, g::Dict{Tuple, LinComb}, p::
     n = length(args)
     result = LinComb()
     
-    # Gerstenhaber brace: f { g } = \sum (-1)^{...} f(a1, ..., g(ai, ..., ai+q-1), ..., an)
+    # Gerstenhaber brace: f { g } = sum_{...} (-1)^k f(a1, ..., g(ai, ..., ai+q-1), ..., an)
     # The number of possible insertion points is p
     for i in 1:p
         # --- THE FIX: SAFETY CHECK ---
@@ -3127,6 +3168,8 @@ function tuple_to_key(tup)
     return "(" * join(parts, ", ") * ")"
 end
 
+
+
 function export_ainf_to_json(
     m3, m4, m5, m6, HH2_dim, prime_paths,
     gerstenhaber, cup, prime_path_interactions,
@@ -3193,24 +3236,35 @@ function export_ainf_to_json(
     # ---------------------------------------------------------------
     # Ihara spectral radius — computed from prime path weights.
     #
-    # The transfer operator T is built as the co-occurrence matrix of
-    # prime paths (same construction as IharaAssociahedronBridgeV2).
-    # Its spectral radius is the Ihara zeta pole distance from origin.
-    # Stored as "ihara_radius" so ReesBlowupHybrid.jl can read g6.
+    # IMPORTANT: do NOT column-normalise T. A column-stochastic matrix
+    # always has spectral radius = 1.0 (Perron-Frobenius), destroying
+    # all per-snapshot variation. The raw weighted T gives the actual
+    # A∞-deformed transfer amplitude, which varies with dynamics.
     #
-    # If no prime paths exist, defaults to 1.0 (trivial graph).
+    # Three variants are exported:
+    #   ihara_radius         — raw ρ(T), log-weighted prime paths
+    #   ihara_radius_norm    — ρ(T)/√(n_regions), normalised for graph size
+    #   ihara_radius_h1      — H1-cycle-restricted ρ (cylinder/trinion)
     # ---------------------------------------------------------------
-    ihara_radius = let
-        n_regions = 6   # fixed: CA1sp, HPF, BLA, sAMY, HY, LA
-        T = zeros(Float64, n_regions, n_regions)
-        region_order = [:CA1sp, :HPF, :BLA, :sAMY, :HY, :LA]
+    ihara_radius, ihara_radius_norm, ihara_radius_q = let
+        # Determine region set from graph_type (support all 4 graph types)
+        region_order = if graph_type ∈ ("Q_7P",)
+            [:BLA, :CA1sp, :HPF, :HY, :LA, :PAL, :sAMY]
+        elseif graph_type ∈ ("Q_7L",)
+            [:BLA, :CA1sp, :HPF, :HY, :LA, :LSX, :sAMY]
+        elseif graph_type == "Q_8"
+            [:BLA, :CA1sp, :HPF, :HY, :LA, :LSX, :PAL, :sAMY]
+        else  # Q_6 default
+            [:BLA, :CA1sp, :HPF, :HY, :LA, :sAMY]
+        end
+        n_r = length(region_order)
         reg_idx = Dict(r => i for (i, r) in enumerate(region_order))
 
+        T_raw = zeros(Float64, n_r, n_r)   # raw log-weighted transfer matrix
+
         for (path, weight) in prime_paths
-            abs_w = log(1 + abs(weight))
+            abs_w = log(1 + abs(weight))   # log-compression keeps values finite
             for k in 1:length(path)-1
-                # Extract source and target region from arrow symbol
-                # Arrow format: :f_SRC_TGT
                 parts_a = split(string(path[k]),   "_")
                 parts_b = split(string(path[k+1]), "_")
                 if length(parts_a) >= 3 && length(parts_b) >= 3
@@ -3219,58 +3273,41 @@ function export_ainf_to_json(
                     a = get(reg_idx, src_r, 0)
                     b = get(reg_idx, tgt_r, 0)
                     if a > 0 && b > 0
-                        T[b, a] += abs_w   # directed: path goes a → b
+                        T_raw[b, a] += abs_w
                     end
                 end
             end
         end
 
-        # Normalise columns (stochastic matrix)
-        for j in 1:n_regions
-            s = sum(T[:, j])
-            s > 0 && (T[:, j] ./= s)
-        end
+        # Raw spectral radius — varies per snapshot, reflects A∞ dynamics
+        eigs_raw = eigvals(T_raw)
+        rho_raw  = maximum(abs.(eigs_raw))
 
-        # Spectral radius = largest absolute eigenvalue
-        eigs = eigvals(T)
-        maximum(abs.(eigs))
+        # Size-normalised: divide by √n_r so different graph types are comparable
+        rho_norm = rho_raw / sqrt(n_r)
+
+        # Mean out-degree q_eff of T_raw (for Ramanujan ratio ρ/√q in test script)
+        q_eff = mean(vec(sum(T_raw, dims=2)))
+
+        rho_raw, rho_norm, q_eff
     end
 
     # ── Bridge B: H1 transfer eigenvalue ─────────────────────────────────────
-    # The H1 generator of the cylinder/trinion surface.
-    # For each graph type, defines the fundamental cycle(s) of H1(Q,Z).
-    #
-    # H1 cycle for Q_6 / Q_7L (cylinder, b1=1):
-    #   Face 2: BLA→LA→sAMY→BLA
-    #   Arrows: f_BLA_LA, f_LA_sAMY, f_sAMY_BLA
-    #
-    # H1 cycles for Q_7P / Q_8 (trinion, b1=2):
-    #   Cycle 1: BLA→LA→sAMY→BLA      (same as cylinder)
-    #   Cycle 2: HY→PAL→sAMY→HY       (new cycle through PAL)
-    #
-    # For Bridge B: λ_H1 = weighted transfer eigenvalue from prime paths
-    #               λ_ihara = ρ(B_Ihara) unweighted
-    #               bridge_b_ratio = λ_H1 / λ_ihara → 1.0 if Bridge B holds
-
     h1_data = let
         # Define H1 cycles per graph type
-        h1_cycles = if graph_type ∈ ("Q_6", "Q_7L")
-            # cylinder: one 3-cycle
-            [[:f_BLA_LA, :f_LA_sAMY, :f_sAMY_BLA]]
+        if graph_type ∈ ("Q_6", "Q_7L")
+            h1_cycles = [[:f_BLA_LA, :f_LA_sAMY, :f_sAMY_BLA]]
         elseif graph_type ∈ ("Q_7P", "Q_8")
-            # trinion: two cycles
-            [[:f_BLA_LA, :f_LA_sAMY, :f_sAMY_BLA],
-             [:f_HY_sAMY, :f_sAMY_PAL, :f_PAL_HY]]
+            h1_cycles = [[:f_BLA_LA, :f_LA_sAMY, :f_sAMY_BLA],
+                         [:f_HY_sAMY, :f_sAMY_PAL, :f_PAL_HY]]
         else
-            [[:f_BLA_LA, :f_LA_sAMY, :f_sAMY_BLA]]
+            h1_cycles = [[:f_BLA_LA, :f_LA_sAMY, :f_sAMY_BLA]]
         end
 
         # Build weighted transfer matrix on H1 cycles from prime paths
         cycle_eigenvalues = Float64[]
         for cycle in h1_cycles
             n_c = length(cycle)
-            # Weight matrix: W[i,j] = sum of prime path weights where
-            # arrow cycle[i] is immediately followed by cycle[j]
             W = zeros(Float64, n_c, n_c)
             for (path, weight) in prime_paths
                 abs_w = abs(weight)
@@ -3284,120 +3321,78 @@ function export_ainf_to_json(
                     end
                 end
             end
-            # Spectral radius of W restricted to this cycle
             eigs_W = eigvals(W)
             push!(cycle_eigenvalues, maximum(abs.(eigs_W)))
         end
 
-        # B_Ihara unweighted spectral radius on H1
-        # For cylinder (b1=1): restrict to 3-cycle arrows
-        # Transfer matrix T3 on cycle [f_BLA_LA, f_LA_sAMY, f_sAMY_BLA] = cyclic perm
-        # Its Perron eigenvalue = 1.0 (unweighted) → but full B_Ihara has ρ=1.5731
-        # We use the full B_Ihara ρ as the reference
-        # (the 3-cycle submatrix eigenvalue is 1; the coupling to rest gives 1.5731)
-        # For the ratio we compare the WEIGHTED cycle eigenvalue to the full ρ
-
-        # Return all data
-        # ── Unweighted B_Ihara restriction to H1 cycle ───────────────────────
-        # Arrow numbering (1-based MAGMA convention):
-        # Q_6 cylinder H1 cycle: BLA→LA→sAMY→BLA
-        #   arr11 = BLA→LA,  arr10 = LA→sAMY,  arr4 = sAMY→BLA
-        #
-        # B_Ihara[i,j] = 1 iff arrow j is admissible continuation of arrow i
-        # For the 3-cycle [11,10,4]:
-        #   B[11,10]: LA→sAMY after BLA→LA? t(BLA→LA)=LA = s(LA→sAMY) ✓
-        #   B[10,4]:  sAMY→BLA after LA→sAMY? t(LA→sAMY)=sAMY = s(sAMY→BLA) ✓
-        #   B[4,11]:  BLA→LA after sAMY→BLA? t(sAMY→BLA)=BLA = s(BLA→LA) ✓
-        # All = 1 → transfer matrix on cycle is the cyclic permutation [0,1,0;0,0,1;1,0,0]
-        # Eigenvalues: cube roots of unity → ρ = 1 (unweighted 3-cycle)
-        #
-        # The H1 EIGENVALUE of B_Ihara (the full ρ=1.5731) comes from the
-        # coupling of this cycle to the rest of the graph via sAMY.
-        # The cycle-restricted eigenvalue is:
-        #   λ_H1 = sum of B_Ihara[h1[i], h1[mod(i,n)+1]] for i in 1:n
-        #        = number of admissible transitions around the cycle
-        #        = n (= 3 for a 3-cycle where all steps are admissible)
-        #
-        # For Bridge B: we want the PERRON eigenvalue of B_Ihara on the
-        # invariant subspace generated by the H1 cycle, not just the trace.
-
-        # Arrow index maps (1-based, matching MAGMA programs):
-        arrow_indices = if graph_type ∈ ("Q_6", "Q_7L")
-            # BLA→LA=11, LA→sAMY=10, sAMY→BLA=4 (1-based)
-            [[11, 10, 4]]
-        elseif graph_type ∈ ("Q_7P", "Q_8")
-            # Cycle 1: BLA→LA=11, LA→sAMY=10, sAMY→BLA=4
-            # Cycle 2: HY→sAMY=7, sAMY→PAL=18/20, PAL→HY=16/18
-            # For Q_7P (18 arrows): sAMY→PAL=18, PAL→HY=16
-            # For Q_8  (20 arrows): sAMY→PAL=20, PAL→HY=18
-            n_a = graph_type == "Q_7P" ? 18 : 20
-            [[11, 10, 4], [7, n_a, n_a-2]]
+        # Arrow index maps (1-based)
+        if graph_type ∈ ("Q_6", "Q_7L")
+            arrow_indices = [[5, 11, 12]]
+        elseif graph_type == "Q_7P"
+            arrow_indices = [[3, 10, 13], [8, 12, 18]]
+        elseif graph_type == "Q_8"
+            arrow_indices = [[5, 12, 15], [10, 14, 20]]
         else
-            [[11, 10, 4]]
+            arrow_indices = [[3, 10, 13]]  # default: BLA cycle
         end
 
-        # Build B_Ihara submatrix for each H1 cycle and compute eigenvalue
-        # B_Ihara is built from arrow composability and nonbacktracking constraint
-        # We use the simple trace formula: λ_H1 = Σ B[h1[i], h1[i%n+1]]
         h1_cycle_eigenvalues = Float64[]
         h1_cycle_traces = Int[]
 
         for h1_idx in arrow_indices
             n_c = length(h1_idx)
-            # Trace of the cycle = number of admissible transitions
-            # = n if all steps nonbacktracking and composable
-            # (For these specific cycles: all are admissible → trace = n)
-            cycle_trace = n_c  # each step is admissible by construction
+            cycle_trace = n_c
             push!(h1_cycle_traces, cycle_trace)
 
-            # The eigenvalue of the cyclic permutation matrix = 1 (real eigenvalue)
-            # But we want the coupling eigenvalue = how the cycle couples to full graph
-            # This is approximated by: cycle_weight / n_c
-            # where cycle_weight = sum of prime path weights that traverse this cycle
+            # Compute cycle weight from prime paths
             cycle_wt = 0.0
             for (path, weight) in prime_paths
                 abs_w = abs(weight)
-                # Check if path traverses this cycle (has all arrows in order)
-                path_syms = [string(s) for s in path]
-                h1_syms = if h1_idx == [11,10,4]
-                    ["f_BLA_LA","f_LA_sAMY","f_sAMY_BLA"]
-                elseif h1_idx == [7,18,16]
-                    ["f_HY_sAMY","f_sAMY_PAL","f_PAL_HY"]
-                elseif h1_idx == [7,20,18]
-                    ["f_HY_sAMY","f_sAMY_PAL","f_PAL_HY"]
+                # Determine if path contains this cycle
+                # Arrow indices use MAGMA canonical Q_7P numbering:
+                #   [3,10,13] = f_BLA_LA, f_LA_sAMY, f_sAMY_BLA  (BLA cycle)
+                #   [8,12,18] = f_HY_PAL, f_PAL_sAMY, f_sAMY_HY  (PAL cycle)
+                if h1_idx == [3,10,13]
+                    target_arrows = ["f_BLA_LA","f_LA_sAMY","f_sAMY_BLA"]
+                elseif h1_idx == [8,12,18] || h1_idx == [8,14,20]
+                    target_arrows = ["f_HY_PAL","f_PAL_sAMY","f_sAMY_HY"]
+                elseif h1_idx == [3,10,13]  # Q_6/Q_7L fallback (same as above)
+                    target_arrows = ["f_BLA_LA","f_LA_sAMY","f_sAMY_BLA"]
                 else
-                    String[]
+                    target_arrows = String[]
                 end
-                # Count how many H1 arrows appear in path
-                hits = sum(1 for s in h1_syms if s ∈ path_syms)
-                if hits == length(h1_syms)
+                path_syms = [string(s) for s in path]
+                # init=0 prevents crash when target_arrows is empty
+                hits = sum((1 for s in target_arrows if s ∈ path_syms); init=0)
+                if !isempty(target_arrows) && hits == length(target_arrows)
                     cycle_wt += abs_w
                 end
             end
 
-            # λ_H1 = cycle weight normalised by cycle length
-            # This approximates the Perron eigenvalue contribution
             λ_h1 = cycle_wt / max(n_c, 1)
             push!(h1_cycle_eigenvalues, λ_h1)
+        end
+
+        # SAFETY: If h1_cycle_traces is empty, provide defaults
+        if isempty(h1_cycle_traces)
+            h1_cycle_traces = [3]
+            h1_cycle_eigenvalues = [0.0]
         end
 
         Dict(
             "h1_cycles"                 => [[string(s) for s in c] for c in h1_cycles],
             "h1_transfer_eigenvalues"   => cycle_eigenvalues,
             "h1_transfer_max"           => isempty(cycle_eigenvalues) ? 0.0 : maximum(cycle_eigenvalues),
-            # New: B_Ihara restriction data
             "h1_arrow_indices"          => arrow_indices,
             "h1_cycle_traces"           => h1_cycle_traces,
             "h1_cycle_eigenvalues"      => h1_cycle_eigenvalues,
             "h1_cycle_eigenvalue_max"   => isempty(h1_cycle_eigenvalues) ? 0.0 : maximum(h1_cycle_eigenvalues),
-            # Bridge B ratio: weighted H1 eigenvalue vs Ihara radius
             "ihara_radius_from_paths"   => ihara_radius,
-            "bridge_b_ratio"            => isempty(h1_cycle_eigenvalues) ? 1.0 :
+            # bridge_b_ratio: H1 cycle eigenvalue / full transfer radius
+            # (meaningful now that ihara_radius is the raw, varying quantity)
+            "bridge_b_ratio"            => isempty(h1_cycle_eigenvalues) ? 0.0 :
                                            maximum(h1_cycle_eigenvalues) / max(ihara_radius, 1e-10),
-            # Algebraic Bridge B: cycle trace / cycle length vs ρ(B_Ihara)
-            # For unweighted: trace=3, ρ_unweighted=1 (cycle submatrix)
-            # Full ρ(B_Ihara)=1.5731 includes coupling to rest of graph
-            "bridge_b_algebraic"        => isempty(h1_cycle_traces) ? 1.0 :
+            "bridge_b_algebraic"        => isempty(h1_cycle_traces) ? 0.0 :
                                            Float64(h1_cycle_traces[1]) / max(ihara_radius, 1e-10),
             "graph_type"                => graph_type,
             "b1"                        => length(h1_cycles)
@@ -3419,6 +3414,8 @@ function export_ainf_to_json(
         "prime_higher_ideals" => prime_ideals_json,
         "derivation_basis" => deriv_basis_json,
         "ihara_radius"             => ihara_radius,
+        "ihara_radius_norm"        => ihara_radius_norm,    # ρ/√n_regions (graph-size normalised)
+        "ihara_radius_q"           => ihara_radius_q,       # mean out-degree of T_raw (= q_eff for test script)
         "H1_cycles"                => h1_data["h1_cycles"],
         "H1_transfer_eigenvalues"  => h1_data["h1_transfer_eigenvalues"],
         "H1_transfer_max"          => h1_data["h1_transfer_max"],
@@ -3663,7 +3660,8 @@ end
 # 7. Main entry point and A∞-only mode
 # ============================================================================
 function compute_and_export(input_weights_file::String, output_json_file::String;
-        filt::Union{FilteredAInfAlgebra,Nothing}=nothing)
+        filt::Union{FilteredAInfAlgebra,Nothing}=nothing,
+        graph_type::String="Q_6")
 
     # Remove any stray commas or whitespace
     input_weights_file = strip(input_weights_file, [',', ' '])
@@ -3721,7 +3719,8 @@ function compute_and_export(input_weights_file::String, output_json_file::String
         ann = ann, 
         supp = supp,
         prime_ideals=prime_ideals,
-        deriv_basis_info=deriv_basis_info
+        deriv_basis_info=deriv_basis_info,
+        graph_type=graph_type
     )
     println("A∞ data written to $output_json_file")
 end
@@ -3907,8 +3906,16 @@ function load_filt_config(path::String)
 end
 
 # Optional: build Symbol edge weights from Int-keyed map (reused across modes)
-function sym_edge_weights(edge_weight_map)
-    node_id_to_sym = Dict(0=>:CA1sp, 1=>:HPF, 2=>:BLA, 3=>:sAMY, 4=>:HY, 5=>:LA)
+function sym_edge_weights(edge_weight_map, graph_type::String="Q_6")
+    node_id_to_sym = if graph_type == "Q_7P"
+        Dict(0=>:BLA, 1=>:CA1sp, 2=>:HPF, 3=>:HY, 4=>:LA, 5=>:PAL, 6=>:sAMY)
+    elseif graph_type == "Q_7L"
+        Dict(0=>:BLA, 1=>:CA1sp, 2=>:HPF, 3=>:HY, 4=>:LA, 5=>:LSX, 6=>:sAMY)
+    elseif graph_type == "Q_8"
+        Dict(0=>:BLA, 1=>:CA1sp, 2=>:HPF, 3=>:HY, 4=>:LA, 5=>:LSX, 6=>:PAL, 7=>:sAMY)
+    else  # Q_6 default
+        Dict(0=>:BLA, 1=>:CA1sp, 2=>:HPF, 3=>:HY, 4=>:LA, 5=>:sAMY)
+    end
     ew = Dict{Tuple{Symbol,Symbol},Float64}()
     for ((u,v), w) in edge_weight_map
         us = get(node_id_to_sym, u, nothing)
@@ -3926,12 +3933,24 @@ if length(ARGS) >= 1 && ARGS[1] == "--ainf-only"
     end
     input_weights_file = ARGS[2]
     output_json_file   = ARGS[3]
-    filt_config_path   = length(ARGS) >= 4 ? ARGS[4] : ""
-    _filt              = isempty(filt_config_path) ? nothing : load_filt_config(filt_config_path)
+    # ARGS[4..N]: graph_type (Q_6|Q_7P|Q_7L|Q_8) and/or filt_config path
+    # Python may pass them in any order: filt before graph_type or after
+    _known_graphs    = ("Q_6", "Q_7P", "Q_7L", "Q_8")
+    _graph_type      = _graph_type_global  # from top-level const (already parsed)
+    filt_config_path = ""
+    for arg in ARGS[4:end]
+        if arg ∈ _known_graphs
+            _graph_type = arg
+        elseif !isempty(arg) && endswith(arg, ".json")
+            filt_config_path = arg
+        end
+    end
+    _filt = isempty(filt_config_path) ? nothing : load_filt_config(filt_config_path)
 
     if _filt === nothing
-        println("Mode: --ainf-only  Phase 1 (flat A∞, m0=0)")
-        compute_and_export(input_weights_file, output_json_file)
+        println("Mode: --ainf-only  Phase 1 (flat A∞, m0=0)  graph=$(_graph_type)")
+        compute_and_export(input_weights_file, output_json_file;
+                           graph_type=_graph_type)
     else
         println("Mode: --ainf-only  Phase 2 (curved A∞ + filtration)")
         # Load weights and run filtered computation
@@ -3946,12 +3965,14 @@ if length(ARGS) >= 1 && ARGS[1] == "--ainf-only"
         end
         raw_coeffs = parse_relations(relations_str)
         new_raw_coeffs = update_raw_coeffs_with_weights(raw_coeffs, edge_weight_map, nodes)
-        _ew_sym = sym_edge_weights(edge_weight_map)
+        _ew_sym = sym_edge_weights(edge_weight_map, _graph_type)
         m3, m4, m5, m6, HH2_dim, prime_paths = compute_A∞(
             new_raw_coeffs, nodes;
             filt=_filt, edge_weights=_ew_sym)
-        export_ainf_to_json(m3, m4, m5, m6, HH2_dim, prime_paths, output_json_file;
-                            graph_type=length(ARGS)>=4 ? ARGS[4] : "Q_6")
+        export_ainf_to_json(m3, m4, m5, m6, HH2_dim, prime_paths, 
+                            [], [], [],            # gerstenhaber, cup, prime_path_interactions 
+                            output_json_file;
+                            graph_type=_graph_type)
         println("Phase 2 --ainf-only export complete.")
     end
     exit(0)
@@ -3963,8 +3984,18 @@ elseif ARGS[1] == "--full"
     input_weights_file = ARGS[2]
     output_json_file   = ARGS[3]
     seed_region_str    = ARGS[4]
-    filt_config_path   = length(ARGS) >= 5 ? ARGS[5] : ""
-    _filt              = isempty(filt_config_path) ? nothing : load_filt_config(filt_config_path)
+    # ARGS[5..N]: graph_type and/or filt_config path in any order
+    _known_graphs_full = ("Q_6", "Q_7P", "Q_7L", "Q_8")
+    _graph_type_full   = _graph_type_global  # from top-level const
+    filt_config_path   = ""
+    for arg in ARGS[5:end]
+        if arg ∈ _known_graphs_full
+            _graph_type_full = arg
+        elseif !isempty(arg) && endswith(arg, ".json")
+            filt_config_path = arg
+        end
+    end
+    _filt = isempty(filt_config_path) ? nothing : load_filt_config(filt_config_path)
     if _filt === nothing
         println("Phase 1 (flat A∞, m0=0, no filtration)")
     else
@@ -4022,7 +4053,21 @@ elseif ARGS[1] == "--full"
     
     #export_ainf_to_json(m3, m4, m5, m6, HH2_dim, prime_paths, output_json_file)
     # Build Symbol-keyed edge weights for filtration (Int keys -> Symbol keys)
-    _node_id_to_sym = Dict(0=>:CA1sp, 1=>:HPF, 2=>:BLA, 3=>:sAMY, 4=>:HY, 5=>:LA)
+    # node_id_to_sym uses CSV index order from region_to_idx
+    # Q_6:  BLA=0,CA1sp=1,HPF=2,HY=3,LA=4,sAMY=5
+    # Q_7P: BLA=0,CA1sp=1,HPF=2,HY=3,LA=4,PAL=5,sAMY=6
+    # Q_7L: BLA=0,CA1sp=1,HPF=2,HY=3,LA=4,LSX=5,sAMY=6
+    # Q_8:  BLA=0,CA1sp=1,HPF=2,HY=3,LA=4,LSX=5,PAL=6,sAMY=7
+    _node_id_to_sym = if _graph_type_full == "Q_7P"
+        Dict(0=>:BLA, 1=>:CA1sp, 2=>:HPF, 3=>:HY, 4=>:LA, 5=>:PAL, 6=>:sAMY)
+    elseif _graph_type_full == "Q_7L"
+        Dict(0=>:BLA, 1=>:CA1sp, 2=>:HPF, 3=>:HY, 4=>:LA, 5=>:LSX, 6=>:sAMY)
+    elseif _graph_type_full == "Q_8"
+        Dict(0=>:BLA, 1=>:CA1sp, 2=>:HPF, 3=>:HY, 4=>:LA, 5=>:LSX, 6=>:PAL, 7=>:sAMY)
+    else  # Q_6
+        Dict(0=>:BLA, 1=>:CA1sp, 2=>:HPF, 3=>:HY, 4=>:LA, 5=>:sAMY)
+    end
+    # Build symbol edge weights using the per-graph node_id_to_sym already defined above
     _ew_sym = Dict{Tuple{Symbol,Symbol},Float64}()
     for ((u,v), w) in edge_weight_map
         us = get(_node_id_to_sym, u, nothing)
@@ -4051,7 +4096,8 @@ elseif ARGS[1] == "--full"
         ann = ann, 
         supp = supp,
         prime_ideals = prime_ideal_paths,
-        deriv_basis_info=deriv_basis_info)
+        deriv_basis_info=deriv_basis_info,
+        graph_type=_graph_type_full)
 
     println("Gerstenhaber/Cup JSON exported to $output_json_file")
 

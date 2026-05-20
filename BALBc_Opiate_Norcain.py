@@ -35,7 +35,7 @@ EDGES_FILE = "/Users/vaw1/Downloads/OGB/BALBc_no1_raw/BALBc-no1_iso3um_stitched_
 
 warnings.filterwarnings('ignore')
 
-JULIA_AINF_SCRIPT = "/Users/vaw1/Downloads/OGB/connectome/phaseTransition_phaseTransition/curved_hh2_sparse_refactored.jl"
+JULIA_AINF_SCRIPT = "/Users/vaw1/Downloads/OGB/connectome/phaseTransition_phaseTransition_complex/curved_hh2_sparse_refactored_filteredA.jl"
 
 # ── Two-phase A∞ computation strategy ────────────────────────────────────────
 # Phase 1 (CURRENT):  flat A∞ with m0=0  (fast, collects baseline data)
@@ -51,13 +51,23 @@ JULIA_AINF_SCRIPT = "/Users/vaw1/Downloads/OGB/connectome/phaseTransition_phaseT
 #
 # Set AINF_PHASE=1 for current run (m0=0, no filtration)
 # Set AINF_PHASE=2 after blowup_table.tsv is collected (m0≠0)
-AINF_PHASE = 1   # ← change to 2 after Phase 1 data is collected
+AINF_PHASE = 2   # ← change to 2 after Phase 1 data is collected
+
+# ── Graph type ────────────────────────────────────────────────────────────────
+# Controls which connectome CSV files are loaded and which H1 cycles
+# are used for Bridge B export in curved_hh2_sparse_refactored.jl
+# Options: "Q_6" | "Q_7L" | "Q_7P" | "Q_8"
+# Override with env var: CONNECTOME_GRAPH_TYPE=Q_7P python3 BALBc_Opiate_Norcain.py
+GRAPH_TYPE = "Q_7P"   # ← change to Q_7P, Q_7L, or Q_8 for other graphs
 
 # Filtration parameters for Phase 2
 FILTRATION_LAMBDA      = 1.0     # exponential decay rate
 FILTRATION_ENERGY_CUT  = 1e-8    # prune paths below this weight
 FILTRATION_MAX_LEN     = 20      # max path length in C4/C5/C6
+# curved_hh2_sparse_refactored_filteredA.jl reads filt_config.json to read these 
+# values directly.
 M0_CURVATURE_SCALE     = 0.1     # scale factor: m0[v] = scale * obstruction_deficit[v]
+M0_CURVATURE_VALUE     = 1066176.0
 
 class MilnorSequestrator:
     """Isolates the 'Milnor Node' singular points during algebraic failure."""
@@ -90,8 +100,21 @@ class FullGraphDynamics:
     
     def __init__(self):
         # Load region graph
-        regions_df = pd.read_csv("regions_six.csv")
-        edges_df = pd.read_csv("region_edges_six.csv")
+        # Graph type is controlled by GRAPH_TYPE constant (set at top of file)
+        # or via environment variable CONNECTOME_GRAPH_TYPE
+        import os as _os
+        _gtype = _os.environ.get("CONNECTOME_GRAPH_TYPE", GRAPH_TYPE)
+        _csv_map = {
+            "Q_6":  ("regions_six.csv",           "region_edges_six.csv"),
+            "Q_7L": ("regions_six_ANDLSX.csv",    "region_edges_six_ANDLSX.csv"),
+            "Q_7P": ("regions_six_ANDPAL.csv",    "region_edges_six_ANDPAL.csv"),
+            "Q_8":  ("regions_six_ANDPALLSX.csv", "region_edges_six_ANDPALLSX.csv"),
+        }
+        _regions_file, _edges_file = _csv_map.get(_gtype, _csv_map["Q_6"])
+        print(f"  [Graph] Loading {_gtype}: {_regions_file}, {_edges_file}")
+        regions_df = pd.read_csv(_regions_file)
+        edges_df = pd.read_csv(_edges_file)
+        self.graph_type = _gtype  # stored for Julia ainf export
         self.nodes = list(regions_df['index'])
         self.n_nodes = len(self.nodes)
         self.region_names = regions_df['region'].tolist()
@@ -261,6 +284,12 @@ class FullGraphDynamics:
         self.json_export_step_indices = []   # one entry per JSON export, in order
         self.gr24_result = None
         self.gr24_frames = []          # per-step SchoperFrame objects
+        self.gr24_blowup_log = []      # wall crossings detected by gr24_step
+        self.schubert_history = []     # per-step Schubert cell data from schubert_cell_spectrum
+        self.singularities = []        # singularity events
+        self.prolate_theta = []        # prolate spheroid theta values
+        self.prolate_theta_times = []  # times for prolate theta
+        self.hh2_global_median = 1.0   # pendant nodes don't affect the spectrum but they do concentrate obstruction.
 
     def compute_single_zeta(self, t, plucker_vec):
         """Compute a simple zeta magnitude from the current Plücker vector."""
@@ -674,6 +703,10 @@ class FullGraphDynamics:
         # Phase 2: append filtration config path if provided
         if filt_config_path is not None and filt_config_path not in extra_args:
             extra_args = list(extra_args) + [filt_config_path]
+        # Pass graph_type as extra arg for Bridge B H1 export
+        gt = getattr(self, 'graph_type', GRAPH_TYPE)
+        if gt != "Q_6" and gt not in extra_args:
+            extra_args = list(extra_args) + [gt]
         cmd = ["julia", self.julia_ainf_script, mode, weights_file.name, output_file.name] + extra_args
         try:
             result = subprocess.run(cmd, check=True, capture_output=True, text=True)
@@ -1077,6 +1110,13 @@ class FullGraphDynamics:
         
         print("\n  Starting simulation with SDE mode =", use_sde)
         print("  A∞ recompute interval =", ainf_recompute_interval, "steps")
+
+        # Gr(2,4) schober step function — import BEFORE the loop
+        try:
+            from gr24_schober_projection import gr24_step as _gr24_step_fn
+            gr24_step = _gr24_step_fn
+        except ImportError:
+            gr24_step = lambda obj, i: None   # graceful fallback
         
         for i in range(n_steps - 1):
             dt_step = t[i+1] - t[i]
@@ -1460,7 +1500,7 @@ class FullGraphDynamics:
                 
                 # Then continue with the ancestor search or Rees blow‑up (inject norcain)
                 best_ancestor = None
-                _ancestor_threshold = self._hh2_global_median * 0.5
+                _ancestor_threshold = self.hh2_global_median * 0.5
                 min_ancestor = max(50, i // 20)
                 for j in range(max(min_ancestor, i-500), i, 50):
                     if self.HH2[j] < _ancestor_threshold and j > 50:
@@ -1532,15 +1572,10 @@ class FullGraphDynamics:
             # ------------------------------------------------------------        
             # After all updates for time step i+1 (e.g., after history.append)
             # ------------------------------------------------------------
-            if i % vtk_interval == 0:   # vtk_interval = 10 or 20
-                self.write_vtu(i+1)
+            # Save diskspace
+            #if i % vtk_interval == 0:   # vtk_interval = 10 or 20
+            #    self.write_vtu(i+1)
             
-
-        # Gr(2,4) schober step function (imported once, used in loop)
-        try:
-            from gr24_schober_projection import gr24_step
-        except ImportError:
-            gr24_step = lambda obj, i: None   # graceful fallback if module missing
 
         # After loop, compute Plücker trajectory and phase transitions
         self.plucker = self.compute_plucker_trajectory()
@@ -1566,7 +1601,10 @@ class FullGraphDynamics:
                 _json2.dump(baseline, fp, indent=2)
             print(f"  Phase 1 baseline saved: {len(self.phase1_blowup_deficits)} blowup deficits")
             print(f"  m0_curvature preview: {baseline['m0_curvature_preview']}")
-            print(f"  -> To activate Phase 2: set AINF_PHASE=2 in BALBc_Opiate_Norcain.py")
+            if self.ainf_phase == 2:
+                print(f"  Phase 2 active: m0_curvature={self.m0_curvature}")
+            else:
+                print("-> To activate Phase 2: set AINF_PHASE=2 in BALBc_Opiate_Norcain.py")
         
         # ── Gr(2,4) schober projection ──────────────────────────────────────
         # Projects the full plucker_history onto Gr(2,4), identifying
@@ -1587,7 +1625,9 @@ class FullGraphDynamics:
     
     def compute_plucker_trajectory(self):
         n = len(self.t)
-        plucker = np.zeros((n, self.n_nodes))
+        # Plücker coordinates for Gr(2,4) are always 6: p12,p13,p14,p23,p24,p34
+        # This is independent of the number of brain regions (n_nodes)
+        plucker = np.zeros((n, 6))
         lambda_A = np.log(2) / self.half_life_A
         lambda_B = np.log(2) / self.half_life_B
         for i in range(n):
@@ -2164,7 +2204,8 @@ def add_quiver_spectral_analysis(quiver, states, t_q):
     # Plot 3: Triple interaction heatmap averaged over time windows
     # Smooth over time with a moving window
     window = 50  # number of time points
-    triple_avg = np.zeros((6, 6))
+    n_nodes_hm = triple_heatmap.shape[1]  # use actual size from data
+    triple_avg = np.zeros((n_nodes_hm, n_nodes_hm))
     for i in range(0, n_t - window, window//2):
         triple_avg += np.mean(triple_heatmap[i:i+window], axis=0)
     triple_avg /= (2 * n_t / window)  # approximate average
@@ -3189,6 +3230,12 @@ def main():
             "q23": [float(np.array(p[2]).flatten()[3]) for p in dynamics.plucker_history],
             "q24": [float(np.array(p[2]).flatten()[4]) for p in dynamics.plucker_history],
             "q34": [float(np.array(p[2]).flatten()[5]) for p in dynamics.plucker_history],
+            "klein_constraint": [
+                 abs(float(np.array(p[2]).flatten()[0] * np.array(p[2]).flatten()[5]
+                     - np.array(p[2]).flatten()[1] * np.array(p[2]).flatten()[4]
+                     + np.array(p[2]).flatten()[2] * np.array(p[2]).flatten()[3]))
+                 for p in dynamics.plucker_history
+             ],
         }
         with open("plucker_trajectory.json", "w") as f:
             json.dump(plucker_dict, f)
