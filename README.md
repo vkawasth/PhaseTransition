@@ -37,12 +37,19 @@ Also Has BALBc_no1_raw files... Taggin of regions had to be done tweaking scale 
 
 https://drive.google.com/drive/u/0/my-drive - Has full snapshot of all large ainf*json files used in simulation along with Paraview vtu/vtk files used in writeup; Look under in OGB -- Connectome -- phaseTransition_phaseTransiotion_complex section.
 sim_step files are suppressed, if you want to see how various regions of brain function wrt to m2..m6 obstrucitons enable it in BALBc_Opiate_Norcain.py under FUllDynamics simulation. (un comment last 2 lines)
+
             # ------------------------------------------------------------   
+            
             # After all updates for time step i+1 (e.g., after history.append)
+            
             # ------------------------------------------------------------
+            
             # Save diskspace
+            
             #if i % vtk_interval == 0:   # vtk_interval = 10 or 20
+            
             #    self.write_vtu(i+1)
+            
 
 
 For full picture using 3 nodes 7 edges use deepseek_python_20260325_149c87.py program.
