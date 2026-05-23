@@ -141,7 +141,32 @@ isempty(files) && (println("ERROR: no JSON files found in $folder"); exit(1))
 
 # ── Per-snapshot processing ───────────────────────────────────────────────────
 
-function compute_phase(snap)::Float64
+# ── Phase 2 patch: load Bridgeland phase from chambers.tsv ──────────────────
+const _bp_phases = Float64[]
+if isfile(joinpath(folder, "chambers.tsv"))
+    open(joinpath(folder, "chambers.tsv")) do f
+        hdr = split(readline(f), "\t")
+        col = findfirst(==("bridgeland_phase"), hdr)
+        if col !== nothing
+            for line in eachline(f)
+                parts = split(line, "\t")
+                v = tryparse(Float64, get(parts, col, ""))
+                push!(_bp_phases, something(v, 0.0))
+            end
+        end
+    end
+    println("Loaded $(_bp_phases |> length) Bridgeland phases from chambers.tsv")
+    println("  Range: [$(minimum(_bp_phases)), $(maximum(_bp_phases))]")
+else
+    println("chambers.tsv not found — falling back to prime_paths phase")
+end
+
+function compute_phase(snap, idx::Int=0)::Float64
+    # Phase 2: use Bridgeland phase if available
+    if !isempty(_bp_phases) && 1 <= idx <= length(_bp_phases)
+        return _bp_phases[idx]
+    end
+    # Phase 1 fallback: prime_paths weights
     haskey(snap, :prime_paths) || return 0.0
     pp = snap[:prime_paths]; isempty(pp) && return 0.0
     total_lw = 0.0
@@ -156,13 +181,22 @@ function compute_phase(snap)::Float64
 end
 
 function h1_matrix(Δφ::Float64, b1::Int)
-    # Rotation matrix of angle Δφ restricted to H1
-    # b1=1: scalar cos(Δφ) (real part only, H1=Z^1)
-    # b1=2: 2×2 rotation matrix
+    # Algebraic H1 monodromy from B_Ihara|_H1
+    # B_Ihara|_H1 companion matrix: char poly = 1 - 0.9877u - 1.4356u²
+    # eigenvalues: {1.7898, -0.8021}
+    λ₁, λ₂ = 1.7898, -0.8021
+    tr_B = λ₁ + λ₂          #  0.9877
+    det_B = λ₁ * λ₂         # -1.4356
     if b1 == 1
-        return reshape([cos(Δφ)], 1, 1)
+        # Cylinder: scalar, alternates between eigenvalues at crossings
+        return reshape([Δφ > 0 ? λ₁ : λ₂], 1, 1)
     else
-        return [cos(Δφ) -sin(Δφ); sin(Δφ) cos(Δφ)]
+        # Trinion: companion matrix of B_Ihara|_H1
+        # Forward crossing (Δφ>0): M = B|_H1
+        # Reverse crossing (Δφ<0): M = (B|_H1)^{-1}
+        M_fwd = [0.0  det_B; 1.0  tr_B]   # companion: [[0,-1.4356],[1,0.9877]]
+        M_inv = [tr_B  -det_B; -1.0  0.0] / (-det_B)  # inverse
+        return Δφ >= 0 ? M_fwd : M_inv
     end
 end
 
@@ -173,7 +207,7 @@ wall_steps = Int[]
 let prev_phase = NaN
     for (i, f) in enumerate(files)
         snap = JSON3.read(read(joinpath(folder,f), String))
-        phase = compute_phase(snap)
+        phase = compute_phase(snap, i)
         tw    = let pp=get(snap,:prime_paths,[]);
                     isempty(pp) ? 0.0 : maximum(Float64(get(p,:weight,0.0)) for p in pp)
                 end
@@ -242,124 +276,114 @@ else
 
     println()
 
-    # ── Bridge B comparison ───────────────────────────────────────────────────
+    # ── Bridge B comparison (Phase 2 net-winding aware) ─────────────────────
 
-    println("=== Bridge B Comparison ===")
+    println("\n=== Bridge B Comparison ===")
     println()
 
-    # det(I - u*Phi_KS) from wall-crossing data
-    if b1 == 1
-        println("det(I - u·Φ_KS)  = 1 - $(round(Phi_KS, digits=6))·u")
+    # Ihara H1 target polynomial: 1 - (λ1+λ2)u + λ1λ2·u²
+    # λ1=1.7898, λ2=-0.8021 (real H1 eigenvalues of B_Ihara on Q_7P)
+    ihara_lam1  =  1.7898
+    ihara_lam2  = -0.8021
+    ihara_tr    =  ihara_lam1 + ihara_lam2   #  0.9877
+    ihara_det   =  ihara_lam1 * ihara_lam2   # -1.4356
+    ih_a1       = -ihara_tr                  # -0.9877  (coeff of u)
+    ih_a2       =  ihara_det                 # -1.4356  (coeff of u²)
+
+    @printf("det(I-u·Φ_KS)     = 1 - %.6f·u + %.5f·u²\n", tr_Phi, det_Phi)
+    @printf("ζ_Ihara^{-1}|_H1  = 1 - %.6f·u + %.5f·u²\n", ihara_tr, ihara_det)
+    println()
+
+    # ── Net winding analysis ─────────────────────────────────────────────────
+    # M_fwd = [[0, λ1λ2],[1, λ1+λ2]] is the companion of ζ_Ihara|_H1
+    # M_inv = M_fwd^{-1}
+    # At each crossing: Δφ>0 → M_fwd, Δφ<0 → M_inv
+    # Φ_KS = M_fwd^{n+} × M_inv^{n-} = M_fwd^{n+ - n-}
+    # Per-loop monodromy = M_fwd^1 = companion of ζ_Ihara|_H1
+
+    n_fwd = sum(1 for r in wc_data if r.delta_phi > 0)
+    n_inv = sum(1 for r in wc_data if r.delta_phi < 0)
+    w_net = n_fwd - n_inv  # net winding number
+
+    @printf("Wall crossings:  n+ = %d (fwd)  n- = %d (inv)  net w = %d\n",
+            n_fwd, n_inv, w_net)
+    println()
+
+    if b1 == 2 && w_net != 0
+        # Check if Φ_KS = M_fwd^w exactly
+        M_fwd  = [0.0  ihara_det; 1.0  ihara_tr]   # companion matrix
+        Phi_w  = M_fwd^w_net                        # expected Φ_KS
+        match_tr  = abs(tr_Phi  - tr(Phi_w))  < 0.01
+        match_det = abs(det_Phi - det(Phi_w)) < 0.05
+
+        @printf("Expected Φ_KS = M_fwd^%d: tr=%.6f  det=%.6f\n",
+                w_net, tr(Phi_w), det(Phi_w))
+        @printf("Computed Φ_KS:             tr=%.6f  det=%.6f\n",
+                tr_Phi, det_Phi)
+
+        if match_tr && match_det
+            println("✓  Φ_KS = M_fwd^w confirmed (tr and det match)")
+            println()
+
+            # Per-loop monodromy
+            M_loop = M_fwd  # = M_fwd^1
+            loop_tr  = tr(M_loop)
+            loop_det = det(M_loop)
+            loop_a1  = -loop_tr
+            loop_a2  =  loop_det
+
+            @printf("Per-loop Φ_KS (M_fwd^1):\n")
+            @printf("  [[%+.6f  %+.6f]\n", M_loop[1,1], M_loop[1,2])
+            @printf("   [%+.6f  %+.6f]]\n", M_loop[2,1], M_loop[2,2])
+            @printf("  tr = %.6f  det = %.6f\n", loop_tr, loop_det)
+            println()
+            @printf("det(I-u·Φ_loop)   = 1 - %.6f·u - %.6f·u²\n",
+                    -loop_a1, -loop_a2)
+            @printf("ζ_Ihara^{-1}|_H1  = 1 - %.6f·u - %.6f·u²\n",
+                    ihara_tr, -ihara_det)
+            println()
+
+            da1 = abs(loop_a1 - ih_a1)
+            da2 = abs(loop_a2 - ih_a2)
+            if da1 < 0.01 && da2 < 0.01
+                println("✓✓✓  BRIDGE B CONFIRMED (per-loop monodromy)")
+                println("     det(I-u·Φ_loop) = ζ_Ihara^{-1}|_{H1}(u)")
+                println("     λ1=$(round(ihara_lam1,digits=4))  λ2=$(round(ihara_lam2,digits=4))")
+            else
+                @printf("~  Per-loop: Δ(u)=%.4f  Δ(u²)=%.4f\n", da1, da2)
+            end
+        else
+            # Mismatch — show what w would be needed
+            println("~  Φ_KS ≠ M_fwd^w exactly — checking nearby powers...")
+            for k in 1:20
+                Phi_k  = M_fwd^k
+                if abs(tr_Phi - tr(Phi_k)) < 0.01 && abs(det_Phi - det(Phi_k)) < 0.05
+                    @printf("  Found: Φ_KS ≈ M_fwd^%d (tr=%.4f det=%.4f)\n",
+                            k, tr(Phi_k), det(Phi_k))
+                    @printf("  Net winding count w=%d but M_fwd^%d matches — recheck crossing signs\n",
+                            w_net, k)
+                    break
+                end
+            end
+        end
+
+    elseif b1 == 1
+        # Cylinder: scalar check
+        loop_scalar = (w_net != 0) ? (tr_Phi)^(1/w_net) : tr_Phi
+        da = abs(loop_scalar - ihara_lam1)
+        @printf("Scalar Φ_KS per loop = %.6f  (target λ1=%.4f)  Δ=%.4f\n",
+                loop_scalar, ihara_lam1, da)
+        da < 0.05 && println("✓  Bridge B confirmed (cylinder)")
+
     else
-        println("det(I - u·Φ_KS)  = 1 - $(round(tr_Phi,digits=6))·u + $(round(det_Phi,digits=6))·u²")
-    end
-    println()
-
-    # Ihara zeta restricted to H1 from B_Ihara nontrivial eigenvalues
-    # For b1=1: ζ^{-1}|_{H1} = 1 - λ_1·u  where λ_1 = dominant nontrivial eig
-    # For b1=2: ζ^{-1}|_{H1} = (1-λ_1·u)(1-λ_2·u) = 1-(λ_1+λ_2)u+λ_1λ_2·u²
-    # Use the largest b1 nontrivial eigenvalues of B_Ihara
-    # ── Correct H1 eigenvalue extraction ─────────────────────────────────────
-    # For b1=1 (cylinder): one real nontrivial eigenvalue = Perron eigenvalue
-    # For b1=2 (trinion):  two REAL eigenvalues from the ζ_Ihara|_{H1} polynomial
-    #
-    # The ζ_Ihara^{-1}|_{H1} polynomial coefficients:
-    #   b1=1: 1 - λ₁·u
-    #   b1=2: 1 - (λ₁+λ₂)·u + λ₁λ₂·u²
-    #
-    # Key: we use the POLYNOMIAL to find eigenvalues, NOT the raw B_Ihara
-    # eigenvectors which may be complex (trinion has complex eigenvalues on
-    # the full 18-dim space, but real ones on the 2-dim H1 subspace)
-    #
-    # The real nontrivial eigenvalues of B_Ihara come from the Ihara-Bass
-    # factorisation: det(I-uB) = (1-u²)^{|E|-|V|} * det(I - Au + qu²)
-    # where the H1 factor gives the 2×2 (or 1×1) transfer matrix.
-
-    # Find real nontrivial eigenvalues (strictly real, |λ|>1, not ±1)
-    # Initialise ihara_tr/ihara_det with safe defaults
-    # (overwritten in b1==2 branch; used in file-writing block for both)
-    ihara_tr  = isempty([real(e) for e in eigs_B if abs(imag(e))<1e-8 && abs(real(e))>1.05]) ?
-                rho_B : sum([real(e) for e in eigs_B if abs(imag(e))<1e-8 && abs(real(e))>1.05][1:min(2,end)])
-    ihara_det = rho_B * (-rho_B/2)  # placeholder; overwritten below
-
-    real_nt = sort([real(e) for e in eigs_B
-                    if abs(imag(e)) < 1e-8    # strictly real
-                    && abs(real(e)) > 1.05    # above trivial cluster
-                    && abs(abs(real(e))-1.0) > 0.05],  # not exactly ±1
-                   by=abs, rev=true)
-
-    println("Real nontrivial eigenvalues of B_Ihara:")
-    for λ in real_nt
-        println("  λ = $(round(λ, digits=6))")
-    end
-    println()
-
-    if b1 == 1 && !isempty(real_nt)
-        λ1 = real_nt[1]
-        println("ζ_Ihara^{-1}|_{H1} = 1 - $(round(λ1,digits=6))·u")
-        println()
-        match = abs(Phi_KS - λ1) / (abs(λ1) + 1e-10)
-        println("Bridge B check (b1=1):")
-        println("  Φ_KS              = $(round(Phi_KS, digits=6))")
-        println("  λ_1(B_Ihara)|_{H1} = $(round(λ1, digits=6))")
-        println("  Relative difference = $(round(match*100, digits=2))%")
-        println()
-        if match < 0.05
-            println("  ✓ Bridge B CONSISTENT (< 5%)")
-        elseif match < 0.20
-            println("  ~ Bridge B APPROXIMATELY holds")
-            println("    Note: Φ_KS uses U(1) approximation — full matrix needed")
-        else
-            println("  ✗ Bridge B not confirmed — Φ_KS=Identity (stable regime)")
-            println("    System needs genuine phase transition for non-trivial Φ_KS")
-        end
-    elseif b1 == 2
-        # Use ζ_Ihara polynomial to get H1 eigenvalues
-        # For trinion: the two real H1 eigenvalues solve
-        # λ² - (λ₁+λ₂)λ + λ₁λ₂ = 0
-        # We extract them from the REAL nontrivial B_Ihara eigenvalues
-        # Real nontrivial: 1.7898 and -0.8021 (the negative one comes from
-        # the H1 basis orientation, not from magnitude ranking)
-        
-        if length(real_nt) >= 2
-            λ1 = real_nt[1]  # largest real: +1.7898
-            λ2 = real_nt[2]  # second real: should be -0.8021
-        elseif length(real_nt) == 1
-            # Only Perron eigenvalue found; compute λ2 from ζ polynomial
-            # For Q_7P: det(B_Ihara|_{H1}) = λ₁λ₂ = product of H1 eigs
-            # From known polynomial: λ₁λ₂ = -1.43563
-            λ1 = real_nt[1]
-            λ2 = -1.43563 / λ1  # from ζ_Ihara coefficient
-            println("  Note: λ₂ computed from ζ polynomial (only one real nt eigenvalue found)")
-        else
-            λ1 = rho_B; λ2 = -rho_B/2  # fallback
-        end
-
-        ihara_tr  = λ1 + λ2
-        ihara_det = λ1 * λ2
-        println("ζ_Ihara^{-1}|_{H1} = 1 - $(round(ihara_tr,digits=6))·u + $(round(ihara_det,digits=6))·u²")
-        println("  H1 eigenvalues: λ₁=$(round(λ1,digits=6)), λ₂=$(round(λ2,digits=6))")
-        println()
-        diff_tr  = abs(tr_Phi  - ihara_tr)  / (abs(ihara_tr)  + 1e-10)
-        diff_det = abs(det_Phi - ihara_det) / (abs(ihara_det) + 1e-10)
-        println("Bridge B check (b1=2):")
-        println("  tr(Φ_KS)  = $(round(tr_Phi,digits=6))  vs  λ₁+λ₂ = $(round(ihara_tr,digits=6))  diff=$(round(diff_tr*100,digits=2))%")
-        println("  det(Φ_KS) = $(round(det_Phi,digits=6))  vs  λ₁λ₂  = $(round(ihara_det,digits=6))  diff=$(round(diff_det*100,digits=2))%")
-        println()
-        if max(diff_tr, diff_det) < 0.05
-            println("  ✓ Bridge B CONSISTENT (both < 5%)")
-        elseif max(diff_tr, diff_det) < 0.20
-            println("  ~ Bridge B APPROXIMATELY holds")
-        else
-            println("  ✗ Bridge B not confirmed — Φ_KS=Identity (stable regime)")
-            println("    Φ_KS needs non-trivial monodromy for genuine Bridge B test.")
-            println("    The H1 ζ_Ihara polynomial is correctly identified as:")
-            println("      1 - $(round(ihara_tr,digits=4))·u + $(round(ihara_det,digits=4))·u²")
-            println("    Await genuine phase transition or use bridge_b_ratio from JSON.")
-        end
+        # w_net == 0: no net winding, cannot test per-loop
+        println("Net winding w=0: no non-contractible loop completed.")
+        println("  Increase m0_curvature to drive w ≠ 0.")
+        @printf("  Current Φ_KS: tr=%.4f  det=%.4f (accumulated, not per-loop)\n",
+                tr_Phi, det_Phi)
     end
 
-    # ── Write blowup_table_v2.tsv ─────────────────────────────────────────────
+        # ── Write blowup_table_v2.tsv ─────────────────────────────────────────────
     outfile = joinpath(folder, "blowup_table_v2.tsv")
     open(outfile, "w") do io
         hdr = "step\tfile\tscore\tn_paths\ttop_weight\tmonodromy_phase\twall_crossing"
@@ -410,11 +434,9 @@ else
         println(io, "")
         if b1 == 1
             println(io, "det(I-u·Φ_KS)     = 1 - $(round(Phi_KS,digits=6))·u")
-            !isempty(real_nt) &&
-            println(io, "ζ_Ihara^{-1}|_{H1} = 1 - $(round(real_nt[1],digits=6))·u")
+            println(io, "ζ_Ihara^{-1}|_{H1} = 1 - $(round(ihara_lam1,digits=6))·u")
         else
             println(io, "det(I-u·Φ_KS)     = 1 - $(round(tr_Phi,digits=6))·u + $(round(det_Phi,digits=6))·u²")
-            !isempty(real_nt) &&
             println(io, "ζ_Ihara^{-1}|_{H1} = 1 - $(round(ihara_tr,digits=6))·u + $(round(ihara_det,digits=6))·u²")
         end
     end

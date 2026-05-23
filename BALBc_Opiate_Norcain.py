@@ -51,7 +51,8 @@ JULIA_AINF_SCRIPT = "/Users/vaw1/Downloads/OGB/connectome/phaseTransition_phaseT
 #
 # Set AINF_PHASE=1 for current run (m0=0, no filtration)
 # Set AINF_PHASE=2 after blowup_table.tsv is collected (m0≠0)
-AINF_PHASE = 2   # ← change to 2 after Phase 1 data is collected
+#AINF_PHASE = 2   # ← change to 2 after Phase 1 data is collected
+AINF_PHASE = 1   # ← change to 2 after Phase 1 data is collected
 
 # ── Graph type ────────────────────────────────────────────────────────────────
 # Controls which connectome CSV files are loaded and which H1 cycles
@@ -66,8 +67,10 @@ FILTRATION_ENERGY_CUT  = 1e-8    # prune paths below this weight
 FILTRATION_MAX_LEN     = 20      # max path length in C4/C5/C6
 # curved_hh2_sparse_refactored_filteredA.jl reads filt_config.json to read these 
 # values directly.
-M0_CURVATURE_SCALE     = 0.1     # scale factor: m0[v] = scale * obstruction_deficit[v]
-M0_CURVATURE_VALUE     = 1066176.0
+#M0_CURVATURE_SCALE     = 0.1     # scale factor: m0[v] = scale * obstruction_deficit[v]
+#M0_CURVATURE_VALUE     = 1066176.0
+M0_CURVATURE_SCALE     = 0.0     # scale factor: m0[v] = scale * obstruction_deficit[v]
+M0_CURVATURE_VALUE     = 0.0
 
 class MilnorSequestrator:
     """Isolates the 'Milnor Node' singular points during algebraic failure."""

@@ -63,7 +63,7 @@ end
 # REGIONS
 ###############################################################
 
-const REGIONS = [:CA1sp,:BLA,:HY,:HPF,:sAMY,:LA]
+const REGIONS = [:BLA,:CA1sp,:HPF,:HY,:LA,:LSX,:sAMY]
 
 ###############################################################
 # HELPERS
