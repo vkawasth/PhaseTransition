@@ -36,7 +36,7 @@ https://drive.google.com/drive/u/0/folders/12NsCD92jV-3jcvb5upIe92Gl2KMN2gGY - H
 Also Has BALBc_no1_raw files... Taggin of regions had to be done tweaking scale as OGB Stanford dataset did not provide scales at which regional samplings were done and direct query using APIs for Atlas configuration 10 muA, 4 muA etc(CCFv3 Codex for voxel/edge assignemnts).. did not work.
 
 https://drive.google.com/drive/u/0/my-drive - Has full snapshot of all large ainf*json files used in simulation along with Paraview vtu/vtk files used in writeup; Look under in OGB -- Connectome -- phaseTransition_phaseTransiotion_complex section.
-sim_step files are suppressed, if you want to see how various regions of brain function wrt to m2..m6 obstrucitons enable it in BALBc_Opiate_Norcain.py under FUllDynamics simulation. (un comment last 2 lines)
+sim_step files are suppressed, if you want to see how various regions of brain function wrt to m2..m6 obstrucitons enable it in BALBc_Opiate_Norcain.py under FUllDynamics simulation. (un comment last 2 lines see 1575-1580)
 
             # ------------------------------------------------------------   
             
