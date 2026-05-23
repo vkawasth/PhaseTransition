@@ -35,6 +35,9 @@ My dataset files Edges, Nodes and tagging files are on google drive:
 https://drive.google.com/drive/u/0/folders/12NsCD92jV-3jcvb5upIe92Gl2KMN2gGY - Has all my generated vtp, vtu simulation files. 
 Also Has BALBc_no1_raw files... Taggin of regions had to be done tweaking scale as OGB Stanford dataset did not provide scales at which regional samplings were done and direct query using APIs for Atlas configuration 10 muA, 4 muA etc(CCFv3 Codex for voxel/edge assignemnts).. did not work.
 
+https://drive.google.com/drive/u/0/my-drive - Has full snapshot of all large ainf*json files used in simulation along with Paraview files used in writeup in OGB -- Connectome -- phaseTransition_phaseTransiotion_complex section.
+
+
 For full picture using 3 nodes 7 edges use deepseek_python_20260325_149c87.py program.
 
 This reporsitory is about studying algebraic geometry through phase change, involving topological transformations. 
