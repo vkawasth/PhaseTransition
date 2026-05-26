@@ -252,6 +252,11 @@ MAGMA ALgebraic computations amoung regions adding PAL, LSX and PAL+LSX
 
 There is also a theorem regarding deformation bounds, wait for updated writeup as MAGMA needs to verify few key points.
 
+Finally Lefschetz Thimbles, Vacua and 4 GR(2,4) quantized planes showing how system re-orients as Opiate and Norcain dynamics plays out. See https://arxiv.org/pdf/2509.13716 for more details.
+
+<img width="577" height="526" alt="Screenshot 2026-05-26 at 2 37 36 PM" src="https://github.com/user-attachments/assets/a9e6f5e2-4dcc-47a6-b3c8-1db9c98d2129" />
+
+
 
 
 
