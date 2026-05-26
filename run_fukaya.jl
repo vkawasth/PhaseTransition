@@ -152,28 +152,24 @@ if !isnothing(d)
     println("  Derived from Schubert stratum (K constraint)")
     println()
 
-    # Sector k detection:
-    # If K=0 everywhere (sphere limit run), use m6 threshold instead
-    K_range = maximum(abs.(d.K)) - minimum(abs.(d.K))
-    if K_range < 1e-6
-        # K is flat — use m6 obstruction to detect crisis
-        println("  Note: K≈0 throughout (sphere limit run) — using m6 threshold for sector detection")
-        # Use log-scale gap detection: crisis = values far above median
-    m6_log = log10.(abs.(d.obs) .+ 1.0)
-    m6_thresh_log = quantile(m6_log, 0.90)
-    # If distribution is bimodal (baseline ~10^3, crisis ~10^19), 
-    # use midpoint in log space
+    # Sector k detection using log-midpoint threshold on m6
+    # Works for both K=0 (sphere limit) and K≠0 runs
+    m6_abs  = abs.(d.obs)
+    m6_log  = log10.(m6_abs .+ 1.0)
     m6_max_log = maximum(m6_log)
     m6_med_log = median(m6_log)
-    if m6_max_log - m6_med_log > 5  # bimodal gap > 5 orders of magnitude
-        m6_thresh_log = (m6_med_log + m6_max_log) / 2
-    end
-    m6_thresh = 10^m6_thresh_log
-    println(@sprintf("  Crisis threshold: |m6| > %.2e (log-midpoint detection)", m6_thresh))
-        k_traj = [abs(d.obs[i]) > m6_thresh ? 3 : 0 for i in 1:d.n]
+
+    if m6_max_log - m6_med_log > 5
+        # Bimodal distribution: log-midpoint separates crisis from baseline
+        m6_thresh = 10 ^ ((m6_med_log + m6_max_log) / 2)
+        println(@sprintf("  m6 threshold (log-midpoint): %.2e", m6_thresh))
     else
-        k_traj = [d.stratum[i] >= 4 ? 0 : 3 for i in 1:d.n]
+        # Unimodal: use 90th percentile
+        m6_thresh = 10 ^ quantile(m6_log, 0.90)
+        println(@sprintf("  m6 threshold (90th pct): %.2e", m6_thresh))
     end
+
+    k_traj = [m6_abs[i] > m6_thresh ? 3 : 0 for i in 1:d.n]
 
     k0_frac = count(k_traj .== 0) / d.n
     k3_frac = count(k_traj .== 3) / d.n

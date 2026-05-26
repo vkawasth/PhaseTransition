@@ -867,7 +867,7 @@ println(@sprintf("  Interior: %d edges  (no stop constraint)", n_int))
 
 println("\n\n── 9. QUANTUM PATH JUMPS ────────────────────────────────────────────")
 println("   Every path that changes the quantum sector k")
-println("   k ∈ {0,1,2,3}  —  only k=0 and k=3 are occupied (GT fingerprint)")
+println("   k ∈ {0,1,2,3}  —  only k=0 and k=3 accessible (directed stop constraint)")
 println()
 
 # Build directed graph: all paths of length 1, 2, 3
@@ -969,7 +969,7 @@ let
          "0% (never occupied)", "π₁(M_Q) = 0 (reverse paths projected out)"),
         (2, "X₂", "k=2", "Sp(4)/U(2)  (quaternionic)",
          "FORBIDDEN: Δk=2 not achievable by ±3 mod 4",
-         "0% (never occupied)", "GT group self-duality forbids even-odd mix"),
+         "0% (never occupied)", "Continuation obstruction: ±3 mod 4 cannot reach k=2"),
         (3, "X₃", "k=3", "Gr(2,4)_ℝ  (real compact form)",
          "CRISIS: LA→sAMY crossing, m₆ spike to 10¹⁹",
          "4.2% of snapshots", "π₂(M_Q) ≠ 0, ghost signal lives here"),
