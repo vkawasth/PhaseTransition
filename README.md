@@ -448,6 +448,7 @@ GPS RESTRICTION MAPS (newly opened edges A→B, A→C, A→D)
 SECTOR COMPARISON TABLE
 
 ======================================================================
+
   Sector  Description                 nnz(B)  active    ρ(B)
   ────────────────────────────────────────────────────────────
   A       Fully stopped (k=0 baselin      20     10  1.2599
