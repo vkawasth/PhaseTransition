@@ -259,8 +259,11 @@ Finally Lefschetz Thimbles, Vacua and 4 GR(2,4) quantized planes showing how sys
 run_fukaya.jl and run_gps_fukaya.jl can now check stop architectures.
 
 ======================================================================
+
 GPS-STYLE WRAPPED FUKAYA CATEGORY  Q_{7P}
+
 Sectors A/B/C/D defined by stop configuration
+
 ======================================================================
 
 ────────────────────────────────────────────────────────────
