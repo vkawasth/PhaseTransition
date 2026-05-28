@@ -258,10 +258,10 @@ Finally Lefschetz Thimbles, Vacua and 4 GR(2,4) quantized planes showing how sys
 
 run_fukaya.jl and run_gps_fukaya.jl can now check stop architectures.
 
+
 ======================================================================
 
 GPS-STYLE WRAPPED FUKAYA CATEGORY  Q_{7P}
-
 Sectors A/B/C/D defined by stop configuration
 
 ======================================================================
@@ -311,7 +311,9 @@ SECTOR D  W(Σ_Q,{LA↔sAMY})
   Backward Λ⁺ crossings blocked: 2
 
 ======================================================================
+
 GPS RESTRICTION MAPS (newly opened edges A→B, A→C, A→D)
+
 ======================================================================
 
   ρ_AB: W_A → W_B  (4 edges newly opened)
@@ -340,103 +342,9 @@ GPS RESTRICTION MAPS (newly opened edges A→B, A→C, A→D)
     rank(B_D - B_C) = 4  (dimension of newly wrapped morphisms)
 
 ======================================================================
+
 SECTOR COMPARISON TABLE
-======================================================================
-  Sector  Description                 nnz(B)  active    ρ(B)
-  ────────────────────────────────────────────────────────────
-  A       Fully stopped (k=0 baselin      20     10  1.2599
-  B       Crisis onset — Λ⁻ re            30     14  1.2599
-  C       Recovery — Λ⁺ re                34     14  1.9090
-  D       Minimal single stop             38     16  1.6180
 
-KEY:
-  Sector A has most restrictions → fewest morphisms → smallest ρ
-  Sector D has fewest restrictions → most morphisms → largest ρ
-  ρ(B) increases monotonically as stops are removed: A ≤ B,C ≤ D
-  This is the GPS unwrapping direction.
-(base) vaw1@VAWs-MacBook-Pro phaseTransition_phaseTransition_complex % cd Q_7P-Phase2.01
-(base) vaw1@VAWs-MacBook-Pro Q_7P-Phase2.01 % cp ../fukaya_gps_sectors.jl .
-(base) vaw1@VAWs-MacBook-Pro Q_7P-Phase2.01 % julia fukaya_gps_sectors.jl 
-======================================================================
-GPS-STYLE WRAPPED FUKAYA CATEGORY  Q_{7P}
-Sectors A/B/C/D defined by stop configuration
-======================================================================
-
-────────────────────────────────────────────────────────────
-SECTOR A  W(Σ_Q, Λ⁺∪Λ⁻)
-  Fully stopped (k=0 baseline)
-  Active stops (8): edges [7, 10, 13, 17, 11, 14, 15, 18]
-  Stop edges: ["BLA→sAMY", "sAMY→BLA", "sAMY→LA", "LA→sAMY", "sAMY→HY", "sAMY→PAL", "HY→sAMY", "PAL→sAMY"]
-  Active edges: 10 / 18
-  Blocked (Hom=0): ["BLA→sAMY", "sAMY→BLA", "sAMY→HY", "sAMY→LA", "sAMY→PAL", "HY→sAMY", "LA→sAMY", "PAL→sAMY"]
-  B_Ihara: 18×18,  nnz=20,  ρ=1.259921
-  Admissible (active in B): rows=9  cols=14
-  Backward Λ⁺ crossings blocked: 4
-
-────────────────────────────────────────────────────────────
-SECTOR B  W(Σ_Q, Λ⁺)
-  Crisis onset — Λ⁻ removed
-  Active stops (4): edges [7, 10, 13, 17]
-  Stop edges: ["BLA→sAMY", "sAMY→BLA", "sAMY→LA", "LA→sAMY"]
-  Active edges: 14 / 18
-  Blocked (Hom=0): ["BLA→sAMY", "sAMY→BLA", "sAMY→LA", "LA→sAMY"]
-  B_Ihara: 18×18,  nnz=30,  ρ=1.259921
-  Admissible (active in B): rows=11  cols=15
-  Backward Λ⁺ crossings blocked: 4
-
-────────────────────────────────────────────────────────────
-SECTOR C  W(Σ_Q, Λ⁻)
-  Recovery — Λ⁺ removed
-  Active stops (4): edges [11, 14, 15, 18]
-  Stop edges: ["sAMY→HY", "sAMY→PAL", "HY→sAMY", "PAL→sAMY"]
-  Active edges: 14 / 18
-  Blocked (Hom=0): ["sAMY→HY", "sAMY→PAL", "HY→sAMY", "PAL→sAMY"]
-  B_Ihara: 18×18,  nnz=34,  ρ=1.908975
-  Admissible (active in B): rows=13  cols=16
-  Backward Λ⁺ crossings blocked: 0
-
-────────────────────────────────────────────────────────────
-SECTOR D  W(Σ_Q,{LA↔sAMY})
-  Minimal single stop
-  Active stops (2): edges [13, 17]
-  Stop edges: ["sAMY→LA", "LA→sAMY"]
-  Active edges: 16 / 18
-  Blocked (Hom=0): ["sAMY→LA", "LA→sAMY"]
-  B_Ihara: 18×18,  nnz=38,  ρ=1.618034
-  Admissible (active in B): rows=13  cols=15
-  Backward Λ⁺ crossings blocked: 2
-
-======================================================================
-GPS RESTRICTION MAPS (newly opened edges A→B, A→C, A→D)
-======================================================================
-
-  ρ_AB: W_A → W_B  (4 edges newly opened)
-    Newly active: ["sAMY→HY", "sAMY→PAL", "HY→sAMY", "PAL→sAMY"]
-    These are the morphisms ρ_AB adds to W_B
-    rank(B_B - B_A) = 2  (dimension of newly wrapped morphisms)
-
-  ρ_AC: W_A → W_C  (4 edges newly opened)
-    Newly active: ["BLA→sAMY", "sAMY→BLA", "sAMY→LA", "LA→sAMY"]
-    These are the morphisms ρ_AC adds to W_C
-    rank(B_C - B_A) = 4  (dimension of newly wrapped morphisms)
-
-  ρ_AD: W_A → W_D  (6 edges newly opened)
-    Newly active: ["BLA→sAMY", "sAMY→BLA", "sAMY→HY", "sAMY→PAL", "HY→sAMY", "PAL→sAMY"]
-    These are the morphisms ρ_AD adds to W_D
-    rank(B_D - B_A) = 4  (dimension of newly wrapped morphisms)
-
-  ρ_BD: W_B → W_D  (2 edges newly opened)
-    Newly active: ["BLA→sAMY", "sAMY→BLA"]
-    These are the morphisms ρ_BD adds to W_D
-    rank(B_D - B_B) = 2  (dimension of newly wrapped morphisms)
-
-  ρ_CD: W_C → W_D  (4 edges newly opened)
-    Newly active: ["sAMY→HY", "sAMY→PAL", "HY→sAMY", "PAL→sAMY"]
-    These are the morphisms ρ_CD adds to W_D
-    rank(B_D - B_C) = 4  (dimension of newly wrapped morphisms)
-
-======================================================================
-SECTOR COMPARISON TABLE
 ======================================================================
   Sector  Description                 nnz(B)  active    ρ(B)
   ────────────────────────────────────────────────────────────
@@ -452,9 +360,12 @@ KEY:
   This is the GPS unwrapping direction.
 (base) vaw1@VAWs-MacBook-Pro Q_7P-Phase2.01 % cp ../fukaya_gps_sectors.jl .
 (base) vaw1@VAWs-MacBook-Pro Q_7P-Phase2.01 % julia fukaya_gps_sectors.jl 
+
 ======================================================================
+
 GPS-STYLE WRAPPED FUKAYA CATEGORY  Q_{7P}
 Sectors A/B/C/D defined by stop configuration
+
 ======================================================================
 
 ────────────────────────────────────────────────────────────
@@ -502,7 +413,9 @@ SECTOR D  W(Σ_Q,{LA↔sAMY})
   Backward Λ⁺ crossings blocked: 2
 
 ======================================================================
+
 GPS RESTRICTION MAPS (newly opened edges A→B, A→C, A→D)
+
 ======================================================================
 
   ρ_AB: W_A → W_B  (4 edges newly opened)
@@ -531,7 +444,9 @@ GPS RESTRICTION MAPS (newly opened edges A→B, A→C, A→D)
     rank(B_D - B_C) = 4  (dimension of newly wrapped morphisms)
 
 ======================================================================
+
 SECTOR COMPARISON TABLE
+
 ======================================================================
   Sector  Description                 nnz(B)  active    ρ(B)
   ────────────────────────────────────────────────────────────
