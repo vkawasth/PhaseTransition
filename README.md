@@ -258,6 +258,14 @@ Finally Lefschetz Thimbles, Vacua and 4 GR(2,4) quantized planes showing how sys
 
 run_fukaya.jl and run_gps_fukaya.jl can now check stop architectures.
 
+GPS stands for Ganatra-Padron-Shende (https://arxiv.org/abs/1809.03427) 
+Each sector k is defined by a different stop configuration Λred(k)\Lambda_{\mathrm{red}}^{(k)}
+Λred(k)​. At k=0k=0
+k=0 the full Λred\Lambda_{\mathrm{red}}
+Λred​ is active; at k=3k=3
+k=3 some stops are removed (the norcain recovery stops are deactivated, modelling the crisis state). This is closest to Ganatra-Pardon-Shende's 
+sectorial descent. It requires deciding exactly which stops are present in each sector — directly tied to the pharmacodynamic model.
+
 
 ======================================================================
 
